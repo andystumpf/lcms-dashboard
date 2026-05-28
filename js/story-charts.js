@@ -209,6 +209,13 @@
     });
   }
 
+  function setCardText(id, title, sub) {
+    const t = document.getElementById(id + '-title');
+    const s = document.getElementById(id + '-sub');
+    if (t && title != null) t.textContent = title;
+    if (s && sub != null) s.textContent = sub;
+  }
+
   function upd(id, labels, datasets) {
     const ch = charts[id];
     if (!ch) return;
@@ -485,9 +492,11 @@
           refresh: () => {
             const st = state();
             if (st.district !== 'all') {
+              setCardText('s37', `${st.district} — Top Churches by Baptized`, 'Top 12 congregations in this district (current)');
               const sorted = [...filteredChurches()].filter(c => c.baptized).sort((a, b) => b.baptized - a.baptized).slice(0, 12);
               upd('s37', sorted.map(c => c.name.slice(0, 28)), [{ data: sorted.map(c => c.baptized), backgroundColor: sorted.map(c => (LCMS.districtColors?.[c.district] || C.blue) + 'CC') }]);
             } else {
+              setCardText('s37', 'District Rank — Baptized', 'Top 12 districts by baptized members (current)');
               const sorted = [...LCMS.districts].sort((a, b) => (b.baptized || 0) - (a.baptized || 0)).slice(0, 12);
               upd('s37', sorted.map(d => d.name), [{ data: sorted.map(d => d.baptized), backgroundColor: sorted.map(d => (LCMS.districtColors?.[d.name] || C.blue) + 'CC') }]);
             }
@@ -498,9 +507,11 @@
           refresh: () => {
             const st = state();
             if (st.district !== 'all') {
+              setCardText('s38', `${st.district} — Top Churches by Attendance`, 'Top 12 congregations in this district (current)');
               const sorted = [...filteredChurches()].filter(c => c.att).sort((a, b) => b.att - a.att).slice(0, 12);
               upd('s38', sorted.map(c => c.name.slice(0, 28)), [{ data: sorted.map(c => c.att), backgroundColor: sorted.map(c => (LCMS.districtColors?.[c.district] || C.gold) + 'CC') }]);
             } else {
+              setCardText('s38', 'District Rank — Attendance', 'Top 12 by avg weekly attendance (current)');
               const sorted = [...LCMS.districts].filter(d => d.attendance).sort((a, b) => b.attendance - a.attendance).slice(0, 12);
               upd('s38', sorted.map(d => d.name), [{ data: sorted.map(d => d.attendance), backgroundColor: sorted.map(d => (LCMS.districtColors?.[d.name] || C.gold) + 'CC') }]);
             }
@@ -545,8 +556,8 @@
       for (const ch of cat.charts) {
         html += `
           <div class="chart-card story-chart-card">
-            <h3>${ch.title}</h3>
-            <div class="chart-subtitle">${ch.sub}</div>
+            <h3 id="${ch.id}-title">${ch.title}</h3>
+            <div class="chart-subtitle" id="${ch.id}-sub">${ch.sub}</div>
             <div class="chart-container story-chart-container"><canvas id="${ch.id}"></canvas></div>
           </div>`;
       }
