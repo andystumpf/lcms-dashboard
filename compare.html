@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compare Churches &mdash; LCMS Dashboard</title>
+  <link rel="stylesheet" href="css/style.css?v=12">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="header header--compact">
+  <div class="header-top">
+    <nav class="header-nav" aria-label="Main">
+      <a href="index.html" class="nav-link">Dashboard</a>
+      <a href="compare.html" class="nav-link active">Compare</a>
+      <a href="sql.html" class="nav-link nav-link--sql">SQL</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+
+  <div id="emptyState" class="empty-state" hidden>
+    <h2>No live data loaded yet</h2>
+    <p>The dashboard reads from <code>/api/lcms</code> (SQLite). Start the server with <code>npm start</code>.</p>
+    <p>This project does <strong>not</strong> ship with placeholder or illustrative data.</p>
+    <pre>npm install
+npm start</pre>
+    <p class="empty-state-detail" id="emptyStateDetail"></p>
+  </div>
+
+  <div class="compare-card">
+    <div class="section-title">Select Congregations</div>
+    <p id="compareHint" class="compare-hint">Select 2&ndash;10 churches to compare.</p>
+
+    <div id="compareChips" class="compare-chips"></div>
+
+    <div id="compareSearchWrap" class="compare-search lookup-search">
+      <div class="lookup-bar">
+        <input
+          id="compareInput"
+          type="search"
+          placeholder="Search by name, city, state, or ZIP to add a church&hellip;"
+          autocomplete="off"
+          spellcheck="false">
+      </div>
+      <div id="compareResults" class="lookup-results" hidden></div>
+    </div>
+  </div>
+
+  <div id="compareMetrics" class="chart-card compare-metrics" hidden>
+    <h3>Metrics Comparison</h3>
+    <div class="chart-subtitle">Latest scraped statistics for each congregation</div>
+    <div class="compare-table-wrap">
+      <table id="compareMetricsTable" class="stats-table compare-table"></table>
+    </div>
+  </div>
+
+  <div id="compareTrend" class="chart-card compare-trend" hidden>
+    <h3>10-Year Trend</h3>
+    <div class="chart-subtitle">Overlaid history from congregation PDF stats</div>
+    <div class="tab-nav compare-trend-tabs">
+      <button type="button" class="tab-btn active" data-metric="baptized">Baptized</button>
+      <button type="button" class="tab-btn" data-metric="attendance">Attendance</button>
+      <button type="button" class="tab-btn" data-metric="confirmed">Confirmed</button>
+    </div>
+    <div class="chart-container" style="height:320px">
+      <div id="compareTrendEmpty" class="lookup-empty compare-trend-empty" hidden>No history available for the selected congregations.</div>
+      <canvas id="compareTrendCanvas"></canvas>
+    </div>
+  </div>
+
+  <div id="compareCharts" class="compare-charts" hidden>
+
+    <div class="charts-row charts-row-2">
+      <div id="compareIndexed" class="chart-card compare-chart">
+        <h3>Indexed Trend</h3>
+        <div class="chart-subtitle">Each church&apos;s first year in history = 100 · compares growth pace regardless of size</div>
+        <div class="chart-container" style="height:280px">
+          <canvas id="compareIndexedCanvas"></canvas>
+        </div>
+      </div>
+      <div id="comparePctChange" class="chart-card compare-chart">
+        <h3>10-Year % Change</h3>
+        <div class="chart-subtitle">Percent change from first to last year of PDF history (active trend metric)</div>
+        <div class="chart-container" style="height:280px">
+          <canvas id="comparePctChangeCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-row charts-row-2">
+      <div id="compareRadar" class="chart-card compare-chart">
+        <h3>Profile Radar</h3>
+        <div class="chart-subtitle">Current metrics normalized among selected churches (largest = 100)</div>
+        <div class="chart-container" style="height:300px">
+          <canvas id="compareRadarCanvas"></canvas>
+        </div>
+      </div>
+      <div id="compareWorshipReach" class="chart-card compare-chart">
+        <h3>Worship Reach</h3>
+        <div class="chart-subtitle">Weekly attendance as % of baptized membership (from PDF history)</div>
+        <div class="chart-container" style="height:300px">
+          <canvas id="compareWorshipReachCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-row charts-row-1">
+      <div id="compareFinancials" class="chart-card compare-chart">
+        <h3>Financial Snapshot</h3>
+        <div class="chart-subtitle">Latest contributions vs at-home expenses per congregation</div>
+        <div class="chart-container" style="height:280px">
+          <canvas id="compareFinancialsCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script src="js/data.js?v=4"></script>
+<script src="js/data-loader.js?v=6"></script>
+<script src="js/church-search.js?v=1"></script>
+<script src="js/church-compare.js?v=2"></script>
+</body>
+</html>

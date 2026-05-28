@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL Console &mdash; LCMS Dashboard</title>
+  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/sql-console.css?v=1">
+</head>
+<body class="sql-console-page">
+
+<header class="header header--compact">
+  <div class="header-top">
+    <span style="font-size:14px;font-weight:600;opacity:0.9">LCMS SQLite</span>
+    <nav class="header-nav" aria-label="Main">
+      <a href="index.html" class="nav-link">Dashboard</a>
+      <a href="compare.html" class="nav-link">Compare</a>
+      <a href="sql.html" class="nav-link nav-link--sql active">SQL</a>
+    </nav>
+  </div>
+</header>
+
+<div class="sql-console">
+  <div class="sql-console-layout">
+    <aside class="sql-sidebar">
+      <div class="sql-sidebar-head">
+        <span>Tables</span>
+        <button type="button" class="sql-btn sql-btn-outline" id="refreshTablesBtn" title="Refresh">↻</button>
+      </div>
+      <div class="sql-sidebar-body" id="tablesList"></div>
+    </aside>
+
+    <div class="sql-main">
+      <div class="sql-editor">
+        <div class="sql-textarea">
+          <textarea id="sqlQuery" placeholder="Enter SQL here…" spellcheck="false"></textarea>
+        </div>
+        <div class="sql-toolbar">
+          <div class="sql-toolbar-left">
+            <button type="button" id="executeBtn" class="sql-btn sql-btn-primary">▶ Execute</button>
+            <button type="button" id="saveBtn" class="sql-btn sql-btn-secondary">Save Query</button>
+            <button type="button" id="showSavedQueriesBtn" class="sql-btn sql-btn-outline">Saved Queries</button>
+          </div>
+          <span class="sql-hint">Read-only · Ctrl+Enter to execute</span>
+        </div>
+      </div>
+
+      <section id="resultsSection" class="sql-results" hidden>
+        <div class="results-header">
+          <h6>Results</h6>
+          <div class="results-meta">
+            <span id="resultsCount"></span>
+            <span id="resultsRuntime"></span>
+            <span id="resultsStatus" class="badge badge-success">Success</span>
+            <button type="button" id="downloadResultsBtn" class="sql-btn sql-btn-outline" hidden>↓ Download CSV</button>
+          </div>
+        </div>
+        <div id="resultsContent" class="results-content"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<aside id="savedQueriesSidebar" class="saved-queries-sidebar" hidden>
+  <div class="saved-queries-header">
+    <span>Saved Queries</span>
+    <button type="button" id="closeSavedQueries" class="sql-btn sql-btn-outline" aria-label="Close">✕</button>
+  </div>
+  <div class="saved-queries-search">
+    <input type="search" id="savedQueriesSearch" placeholder="Search saved queries…">
+  </div>
+  <div id="savedQueriesList" class="saved-queries-list"></div>
+</aside>
+
+<div id="saveModal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <h3>Save Query</h3>
+    <div class="modal-field">
+      <label for="saveQueryName">Name</label>
+      <input type="text" id="saveQueryName" required>
+    </div>
+    <div class="modal-field">
+      <label for="saveQueryCategory">Category</label>
+      <select id="saveQueryCategory">
+        <option value="CRUD">CRUD</option>
+        <option value="Investigation">Investigation</option>
+        <option value="Metrics">Metrics</option>
+        <option value="General" selected>General</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label for="saveQueryDescription">Description</label>
+      <input type="text" id="saveQueryDescription">
+    </div>
+    <div class="modal-field">
+      <label for="saveQueryPreview">Query</label>
+      <textarea id="saveQueryPreview" readonly></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" id="saveModalCancel" class="sql-btn sql-btn-outline">Cancel</button>
+      <button type="button" id="saveModalSubmit" class="sql-btn sql-btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/sql-console.js?v=1"></script>
+</body>
+</html>

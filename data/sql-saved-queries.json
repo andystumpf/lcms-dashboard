@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "name": "Top 25 churches by attendance",
+    "description": "Largest congregations by reported weekly worship attendance",
+    "query": "SELECT c.name, c.city, c.state, d.name AS district, c.attendance, c.baptized, c.communing\nFROM churches c\nLEFT JOIN districts d ON d.lookup_id = c.district_lookup_id\nWHERE c.attendance IS NOT NULL\nORDER BY c.attendance DESC\nLIMIT 25",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "Congregations per state",
+    "description": "Count of churches and total baptized members by state",
+    "query": "SELECT state,\n       COUNT(*) AS churches,\n       SUM(CASE WHEN has_stats = 1 THEN 1 ELSE 0 END) AS with_stats,\n       SUM(baptized) AS baptized_total,\n       SUM(attendance) AS attendance_total\nFROM churches\nWHERE state IS NOT NULL AND state != ''\nGROUP BY state\nORDER BY churches DESC",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:01.000Z"
+  },
+  {
+    "id": 3,
+    "name": "District roster",
+    "description": "All districts with scraped congregation counts and synod metrics",
+    "query": "SELECT name,\n       member_congregations,\n       baptized_members,\n       communicant_members,\n       attendance,\n       giving_millions,\n       preschools + elementary_schools + high_schools AS schools\nFROM districts\nORDER BY name",
+    "category": "General",
+    "created_at": "2026-05-28T00:00:02.000Z"
+  },
+  {
+    "id": 4,
+    "name": "Synod summary (official vs scraped)",
+    "description": "Compare official LCMS figures to locally scraped totals",
+    "query": "SELECT congregations_official,\n       congregations_scraped,\n       congregations_with_stats,\n       baptized_members_official,\n       baptized_members_scraped,\n       communing_members_official,\n       communing_members_scraped,\n       avg_weekly_attendance_official,\n       avg_weekly_attendance_scraped,\n       total_giving_millions_official,\n       total_giving_millions_scraped,\n       updated_at\nFROM synod_summary\nWHERE id = 1",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:03.000Z"
+  },
+  {
+    "id": 5,
+    "name": "Last build / import metadata",
+    "description": "When data was fetched and row counts from the last import",
+    "query": "SELECT fetched_at, source, church_count, stats_count, district_count, yearly_rows\nFROM build_meta\nWHERE id = 1",
+    "category": "General",
+    "created_at": "2026-05-28T00:00:04.000Z"
+  },
+  {
+    "id": 6,
+    "name": "Churches missing stats",
+    "description": "Congregations in the locator with no PDF stat profile",
+    "query": "SELECT c.name, c.city, c.state, d.name AS district, c.status\nFROM churches c\nLEFT JOIN districts d ON d.lookup_id = c.district_lookup_id\nWHERE c.has_stats = 0\nORDER BY c.state, c.name\nLIMIT 100",
+    "category": "Investigation",
+    "created_at": "2026-05-28T00:00:05.000Z"
+  },
+  {
+    "id": 7,
+    "name": "Churches without financials",
+    "description": "Has stats flag but no row in church_financials",
+    "query": "SELECT c.lookup_id, c.name, c.city, c.state, c.last_stat_year\nFROM churches c\nLEFT JOIN church_financials f ON f.lookup_id = c.lookup_id\nWHERE c.has_stats = 1 AND f.lookup_id IS NULL\nORDER BY c.name\nLIMIT 100",
+    "category": "Investigation",
+    "created_at": "2026-05-28T00:00:06.000Z"
+  },
+  {
+    "id": 8,
+    "name": "Churches missing contact info",
+    "description": "No phone, email, or website on record",
+    "query": "SELECT name, city, state,\n       phone, email, website\nFROM churches\nWHERE (phone IS NULL OR phone = '')\n  AND (email IS NULL OR email = '')\n  AND (website IS NULL OR website = '')\nORDER BY state, name\nLIMIT 100",
+    "category": "Investigation",
+    "created_at": "2026-05-28T00:00:07.000Z"
+  },
+  {
+    "id": 9,
+    "name": "Yearly history coverage",
+    "description": "How many year rows each church has in church_yearly",
+    "query": "SELECT CASE\n         WHEN yr_count = 0 THEN '0 years'\n         WHEN yr_count BETWEEN 1 AND 3 THEN '1-3 years'\n         WHEN yr_count BETWEEN 4 AND 7 THEN '4-7 years'\n         WHEN yr_count BETWEEN 8 AND 9 THEN '8-9 years'\n         ELSE '10+ years'\n       END AS coverage_bucket,\n       COUNT(*) AS churches\nFROM (\n  SELECT c.lookup_id, COUNT(y.year) AS yr_count\n  FROM churches c\n  LEFT JOIN church_yearly y ON y.lookup_id = c.lookup_id\n  WHERE c.has_stats = 1\n  GROUP BY c.lookup_id\n)\nGROUP BY coverage_bucket\nORDER BY coverage_bucket",
+    "category": "Investigation",
+    "created_at": "2026-05-28T00:00:08.000Z"
+  },
+  {
+    "id": 10,
+    "name": "National trends (all years)",
+    "description": "Synod-wide yearly metrics used by dashboard charts",
+    "query": "SELECT year,\n       congregations,\n       sample_size,\n       baptized_members,\n       communing_members,\n       avg_weekly_attendance,\n       total_giving_millions,\n       confirmations,\n       infant_baptisms + adult_baptisms AS baptisms\nFROM national_yearly\nORDER BY year",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:09.000Z"
+  },
+  {
+    "id": 11,
+    "name": "Top districts by giving",
+    "description": "Districts ranked by reported giving (millions)",
+    "query": "SELECT name,\n       giving_millions,\n       attendance,\n       baptized_members,\n       communicant_members,\n       member_congregations\nFROM districts\nWHERE giving_millions IS NOT NULL\nORDER BY giving_millions DESC",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:10.000Z"
+  },
+  {
+    "id": 12,
+    "name": "Avg giving per baptized member by district",
+    "description": "Rough per-capita giving using district totals",
+    "query": "SELECT d.name,\n       d.giving_millions,\n       d.baptized_members,\n       ROUND(d.giving_millions * 1000000.0 / NULLIF(d.baptized_members, 0), 2) AS dollars_per_baptized\nFROM districts d\nWHERE d.giving_millions IS NOT NULL AND d.baptized_members > 0\nORDER BY dollars_per_baptized DESC",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:11.000Z"
+  },
+  {
+    "id": 13,
+    "name": "Church size distribution",
+    "description": "Bucket churches by weekly attendance",
+    "query": "SELECT CASE\n         WHEN attendance IS NULL THEN 'Unknown'\n         WHEN attendance < 50 THEN 'Under 50'\n         WHEN attendance < 100 THEN '50-99'\n         WHEN attendance < 200 THEN '100-199'\n         WHEN attendance < 500 THEN '200-499'\n         ELSE '500+'\n       END AS size_bucket,\n       COUNT(*) AS churches\nFROM churches\nGROUP BY size_bucket\nORDER BY MIN(COALESCE(attendance, -1))",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:12.000Z"
+  },
+  {
+    "id": 14,
+    "name": "Top givers (congregation financials)",
+    "description": "Churches with highest reported contributions",
+    "query": "SELECT c.name, c.city, c.state, d.name AS district,\n       f.report_year, f.contributions, f.contribs_per_confirmed_member\nFROM church_financials f\nJOIN churches c ON c.lookup_id = f.lookup_id\nLEFT JOIN districts d ON d.lookup_id = c.district_lookup_id\nWHERE f.contributions IS NOT NULL\nORDER BY f.contributions DESC\nLIMIT 25",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:13.000Z"
+  },
+  {
+    "id": 15,
+    "name": "Churches with schools",
+    "description": "Congregations linked to one or more schools",
+    "query": "SELECT c.name, c.city, c.state,\n       COUNT(s.school_name) AS school_count,\n       GROUP_CONCAT(s.school_name, ' | ') AS schools\nFROM church_schools s\nJOIN churches c ON c.lookup_id = s.lookup_id\nGROUP BY c.lookup_id\nORDER BY school_count DESC, c.name\nLIMIT 50",
+    "category": "General",
+    "created_at": "2026-05-28T00:00:14.000Z"
+  },
+  {
+    "id": 16,
+    "name": "Ministry categories",
+    "description": "Count of ministry listings by category",
+    "query": "SELECT COALESCE(category, '(none)') AS category,\n       COUNT(*) AS ministry_listings,\n       COUNT(DISTINCT lookup_id) AS churches\nFROM church_ministries\nGROUP BY category\nORDER BY ministry_listings DESC",
+    "category": "General",
+    "created_at": "2026-05-28T00:00:15.000Z"
+  },
+  {
+    "id": 17,
+    "name": "Largest attendance drops (YoY)",
+    "description": "Single-year attendance declines in church_yearly history",
+    "query": "WITH yearly AS (\n  SELECT lookup_id, year, attendance,\n         LAG(attendance) OVER (PARTITION BY lookup_id ORDER BY year) AS prev\n  FROM church_yearly\n  WHERE attendance IS NOT NULL\n)\nSELECT c.name, c.city, c.state, y.year,\n       y.prev AS prev_attendance, y.attendance,\n       y.attendance - y.prev AS change\nFROM yearly y\nJOIN churches c ON c.lookup_id = y.lookup_id\nWHERE y.prev IS NOT NULL AND y.attendance < y.prev\nORDER BY change ASC\nLIMIT 25",
+    "category": "Investigation",
+    "created_at": "2026-05-28T00:00:16.000Z"
+  },
+  {
+    "id": 18,
+    "name": "Search churches in Texas",
+    "description": "Example state filter — change TX to any state abbreviation",
+    "query": "SELECT name, city, state, attendance, baptized, communing\nFROM churches\nWHERE state = 'TX'\nORDER BY CASE WHEN attendance IS NULL THEN 1 ELSE 0 END, attendance DESC\nLIMIT 50",
+    "category": "General",
+    "created_at": "2026-05-28T00:00:17.000Z"
+  },
+  {
+    "id": 19,
+    "name": "Church profile (join all core tables)",
+    "description": "Full snapshot for one church — change the lookup_id",
+    "query": "SELECT c.lookup_id, c.name, c.city, c.state, c.status,\n       d.name AS district, c.attendance, c.baptized, c.communing,\n       f.report_year, f.contributions, f.child_baptisms,\n       f.junior_confirmations, f.adult_confirmations\nFROM churches c\nLEFT JOIN districts d ON d.lookup_id = c.district_lookup_id\nLEFT JOIN church_financials f ON f.lookup_id = c.lookup_id\nWHERE c.lookup_id = 608180",
+    "category": "General",
+    "created_at": "2026-05-28T00:00:18.000Z"
+  },
+  {
+    "id": 20,
+    "name": "Recent national membership change",
+    "description": "Year-over-year delta for baptized, communing, and attendance",
+    "query": "WITH ordered AS (\n  SELECT year, baptized_members, communing_members, avg_weekly_attendance,\n         LAG(baptized_members) OVER (ORDER BY year) AS prev_baptized,\n         LAG(communing_members) OVER (ORDER BY year) AS prev_communing,\n         LAG(avg_weekly_attendance) OVER (ORDER BY year) AS prev_attendance\n  FROM national_yearly\n)\nSELECT year,\n       baptized_members - prev_baptized AS baptized_change,\n       communing_members - prev_communing AS communing_change,\n       avg_weekly_attendance - prev_attendance AS attendance_change\nFROM ordered\nWHERE prev_baptized IS NOT NULL\nORDER BY year DESC\nLIMIT 15",
+    "category": "Metrics",
+    "created_at": "2026-05-28T00:00:19.000Z"
+  }
+]

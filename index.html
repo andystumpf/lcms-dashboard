@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LCMS Churches Dashboard &mdash; United States</title>
+  <link rel="stylesheet" href="css/style.css?v=12">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-top">
+    <nav class="header-nav" aria-label="Main">
+      <a href="index.html" class="nav-link active">Dashboard</a>
+      <a href="compare.html" class="nav-link">Compare</a>
+      <a href="sql.html" class="nav-link nav-link--sql">SQL</a>
+    </nav>
+  </div>
+  <div class="header-toolbar">
+    <div class="header-filters">
+      <div class="filter-field">
+        <label class="filter-label" for="districtFilter">District</label>
+        <select id="districtFilter" onchange="filterDistrict(this.value)">
+          <option value="all">All Districts</option>
+        </select>
+      </div>
+      <div class="filter-divider" aria-hidden="true"></div>
+      <div class="filter-field filter-period">
+        <label class="filter-label" for="yearPreset">Period</label>
+        <div class="filter-period-controls">
+          <select id="yearPreset" onchange="applyYearPreset(this.value)" title="Quick range">
+            <option value="all">All Years</option>
+            <option value="5">Last 5 Years</option>
+            <option value="10" selected>Last 10 Years</option>
+            <option value="custom">Custom</option>
+          </select>
+          <select id="yearStart" onchange="updateYearWindow()" aria-label="Start year"></select>
+          <span class="filter-sep">&ndash;</span>
+          <select id="yearEnd" onchange="updateYearWindow()" aria-label="End year"></select>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <div id="emptyState" class="empty-state" hidden>
+    <h2>No live data loaded yet</h2>
+    <p>The dashboard reads from <code>/api/lcms</code> (SQLite). Start the server with <code>npm start</code>.</p>
+    <p>This project does <strong>not</strong> ship with placeholder or illustrative data.</p>
+    <pre>npm install
+npm start
+# open http://localhost:8000</pre>
+    <p class="empty-state-detail" id="emptyStateDetail"></p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  CHURCH LOOKUP                                              -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="lookup-card">
+    <div class="lookup-search">
+      <div class="lookup-bar">
+        <input
+          id="lookupInput"
+          type="search"
+          placeholder="Find a church by name, city, state, or ZIP (try &ldquo;trinity houston tx&rdquo;)&hellip;"
+          autocomplete="off"
+          spellcheck="false">
+        <button id="lookupClear" type="button" hidden aria-label="Clear">Clear</button>
+      </div>
+      <div id="lookupResults" class="lookup-results" hidden></div>
+    </div>
+    <div id="lookupDetail"  class="lookup-detail"  hidden></div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpi-congregations">&mdash;</div>
+      <div class="kpi-label" id="kpi-label-cong">Active Congregations</div>
+      <div class="kpi-change" id="kpi-change-cong">&mdash;</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpi-baptized">&mdash;</div>
+      <div class="kpi-label">Baptized Members</div>
+      <div class="kpi-change" id="kpi-change-bap">&mdash;</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpi-attendance">&mdash;</div>
+      <div class="kpi-label">Avg Weekly Attendance</div>
+      <div class="kpi-change" id="kpi-change-att">&mdash;</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" id="kpi-giving">&mdash;</div>
+      <div class="kpi-label">Total Annual Giving</div>
+      <div class="kpi-change" id="kpi-change-giv">&mdash;</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  KEY INDICATORS — reacts to District + Period filters        -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="section-title">
+    Key Indicators
+    <span class="context-pill" id="insightsContext">Loading&hellip;</span>
+  </div>
+
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <h3>Indexed Trajectory <span class="pill-mini">period start = 100</span></h3>
+      <div class="chart-subtitle">Normalized comparison of all four headline KPIs across the selected window</div>
+      <div class="chart-container" style="height:260px"><canvas id="indexedTrendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Change Over Selected Period</h3>
+      <div class="chart-subtitle">% change from first to last year of the active window</div>
+      <div class="chart-container" style="height:260px"><canvas id="kpiChangeChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row charts-row-2" style="margin-bottom:8px">
+    <div class="chart-card">
+      <h3>Members per Congregation</h3>
+      <div class="chart-subtitle">Average baptized membership per active congregation</div>
+      <div class="chart-container" style="height:240px"><canvas id="membersPerChurchChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 id="districtShareTitle">District Share of Congregations</h3>
+      <div class="chart-subtitle" id="districtShareSubtitle">Top 10 districts vs. all others</div>
+      <div class="chart-container" style="height:240px"><canvas id="districtShareChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  TOP 50 HERO SECTION                                        -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="section-title">Top 50 Rankings &mdash; Individual Congregations</div>
+
+  <div class="top50-card">
+    <div class="top50-header">
+      <div>
+        <h2 id="top50Title">Top 50 LCMS Congregations by Average Weekly Attendance</h2>
+        <p class="chart-subtitle">Bars color-coded by district &middot; Click any category tab to instantly re-rank</p>
+      </div>
+    </div>
+
+    <div class="tab-nav top50-tabs">
+      <button class="tab-btn active" onclick="showTop50('att',this)">Attendance</button>
+      <button class="tab-btn" onclick="showTop50('baptized',this)">Baptized</button>
+      <button class="tab-btn" onclick="showTop50('communing',this)">Communing</button>
+      <button class="tab-btn" onclick="showTop50('giving',this)">Total Giving</button>
+      <button class="tab-btn" onclick="showTop50('perMemberGiving',this)">$/Member</button>
+      <button class="tab-btn" onclick="showTop50('conf',this)">Confirmations</button>
+    </div>
+
+    <div id="districtLegend" class="district-legend"></div>
+
+    <div class="chart-container" style="height:1500px">
+      <canvas id="top50Chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top 50 Detail Table -->
+  <div class="chart-card" style="margin-bottom:24px">
+    <h3>Top 50 Detail Table</h3>
+    <div class="chart-subtitle" id="top50TableSubtitle">Click a column header to sort all congregations</div>
+    <div style="overflow-x:auto;margin-top:14px">
+      <table class="stats-table">
+        <thead>
+          <tr id="top50TableHead">
+            <th>#</th><th>Church</th><th>Location</th><th>District</th>
+            <th>Attendance</th><th>Baptized</th><th>Total Giving</th><th>$/Member</th>
+          </tr>
+        </thead>
+        <tbody id="top50TableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  TREND CHARTS                                               -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="section-title">National Trends</div>
+
+  <!-- Row 1: Membership + Attendance -->
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <h3>Membership Trends</h3>
+      <div class="chart-subtitle">Baptized &amp; Communing Members</div>
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="showMemberChart('both',this)">Both</button>
+        <button class="tab-btn" onclick="showMemberChart('baptized',this)">Baptized</button>
+        <button class="tab-btn" onclick="showMemberChart('communing',this)">Communing</button>
+      </div>
+      <div class="chart-container" style="height:260px"><canvas id="membershipChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Average Weekly Attendance</h3>
+      <div class="chart-subtitle">In-person worshipers &middot; 2020 reflects COVID-19 impact</div>
+      <div class="chart-container" style="height:306px"><canvas id="attendanceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 2: Financials -->
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <h3>Total Annual Giving</h3>
+      <div class="chart-subtitle">Contributions from scraped congregation PDFs &middot; millions USD</div>
+      <div class="chart-container" style="height:280px"><canvas id="givingTrendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Giving Breakdown</h3>
+      <div class="chart-subtitle" id="givingDonutSubtitle">Contributions vs. at-home expenses</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+        <div class="chart-container" style="height:240px"><canvas id="givingDonutChart"></canvas></div>
+        <div id="givingDonutLegend" style="display:flex;flex-direction:column;gap:14px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Districts -->
+  <div class="section-title">All 35 LCMS Districts</div>
+  <div class="charts-row charts-row-1">
+    <div class="chart-card">
+      <h3>Congregations &amp; Statistics by District</h3>
+      <div class="chart-subtitle">Click a tab to re-sort by that metric</div>
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="showDistrictMetric('churches',this)">Congregations</button>
+        <button class="tab-btn" onclick="showDistrictMetric('baptized',this)">Baptized Members</button>
+        <button class="tab-btn" onclick="showDistrictMetric('attendance',this)">Attendance</button>
+        <button class="tab-btn" onclick="showDistrictMetric('giving',this)">Giving ($M)</button>
+      </div>
+      <div class="chart-container" style="height:540px"><canvas id="districtChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 4: Baptisms + Church Size -->
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <h3>Baptisms &amp; Confirmations</h3>
+      <div class="chart-subtitle">Child baptisms &amp; confirmations from scraped PDFs</div>
+      <div class="chart-container" style="height:280px"><canvas id="baptismChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Congregation Size Distribution</h3>
+      <div class="chart-subtitle">Number of churches by average weekly attendance bracket</div>
+      <div class="chart-container" style="height:280px"><canvas id="sizeChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 5: Per-member + Attendance Rate -->
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <h3>Per-Member Giving</h3>
+      <div class="chart-subtitle">Annual total giving divided by baptized membership</div>
+      <div class="chart-container" style="height:260px"><canvas id="perMemberGivingChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Worship Attendance Rate</h3>
+      <div class="chart-subtitle">Avg weekly attendance as % of communing members</div>
+      <div class="chart-container" style="height:260px"><canvas id="attendanceRateChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 7: Top States + Member Flow -->
+  <div class="charts-row charts-row-2">
+    <div class="chart-card">
+      <h3>Top 20 States by Church Count</h3>
+      <div class="chart-subtitle">LCMS congregations per state</div>
+      <div class="chart-container" style="height:340px"><canvas id="stateChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Membership Flow</h3>
+      <div class="chart-subtitle">Annual gains (baptisms &amp; confirmations) from scraped PDFs</div>
+      <div class="chart-container" style="height:340px"><canvas id="memberFlowChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  TEN-YEAR STORY — 40 investigation charts                    -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div id="storyChartsMount"></div>
+
+  <!-- District League Table -->
+  <div class="section-title">District League Table</div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <h3>All Districts &mdash; Key Statistics at a Glance</h3>
+    <div class="chart-subtitle">Ranked by congregations &middot; most recent reporting year</div>
+    <div style="overflow-x:auto;margin-top:14px">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>#</th><th>District</th><th>Churches</th>
+            <th>Baptized Members</th><th>Communing Members</th>
+            <th>Avg Weekly Attendance</th><th>Annual Giving</th><th>Giving / Member</th>
+          </tr>
+        </thead>
+        <tbody id="districtTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="js/data.js?v=4"></script>
+<script src="js/data-loader.js?v=6"></script>
+<script src="js/dashboard.js?v=20"></script>
+<script src="js/story-charts.js?v=1"></script>
+<script src="js/church-search.js?v=1"></script>
+<script src="js/church-lookup.js?v=11"></script>
+</body>
+</html>

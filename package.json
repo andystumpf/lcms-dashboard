@@ -1,0 +1,14 @@
+{
+  "name": "lcms-data-dashboard",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "description": "LCMS congregations dashboard — SQLite-backed charts, compare, and SQL console",
+  "scripts": {
+    "start": "node server/api.mjs",
+    "go": "node server/api.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
+  }
+}
