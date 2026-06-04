@@ -34,7 +34,7 @@ import {
 } from '../lib/sql-console.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.LCMS_PORT || 8000);
+const PORT = Number(process.env.PORT || process.env.LCMS_PORT || 8000);
 const DB_PATH = process.env.LCMS_DB_PATH || DEFAULT_DB;
 
 const MIME = {
