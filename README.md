@@ -9,6 +9,9 @@ The bundled snapshot (captured **2026‑05‑28**) covers **5,986 congregations*
 across **all 35 LCMS districts**, with up to 10 years of membership, worship,
 and financial history per church.
 
+LIVE DEMO: https://lcms-dashboard.onrender.com/
+Give the page a solid 30 seconds for the service to spin up.
+
 ## Quick start
 
 ```bash
