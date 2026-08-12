@@ -6,9 +6,17 @@
   "description": "LCMS congregations dashboard — SQLite-backed charts, compare, and SQL console",
   "scripts": {
     "start": "node server/api.mjs",
-    "go": "node server/api.mjs"
+    "go": "node server/api.mjs",
+    "prepare:public": "node scripts/prepare-public.mjs",
+    "db:export": "node scripts/export-d1-seed.mjs",
+    "db:import": "wrangler d1 execute lcms-dashboard --remote --file=db/d1-seed.sql",
+    "cf:dev": "npm run prepare:public && wrangler dev",
+    "cf:deploy": "npm run prepare:public && wrangler deploy"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.121.0"
   }
 }

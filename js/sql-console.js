@@ -42,18 +42,25 @@
       row.innerHTML = `
         <div class="table-item-row" data-table="${escapeAttr(name)}">
           <span>${escapeHtml(name)}</span>
-          <button type="button" class="table-add-btn" title="Insert name">+</button>
+          <span class="table-item-actions">
+            <button type="button" class="table-query-btn" title="Load SELECT * query">▶</button>
+            <button type="button" class="table-add-btn" title="Insert FROM clause">+</button>
+          </span>
         </div>
         <div class="table-columns-list" id="cols-${escapeAttr(name)}"></div>`;
       list.appendChild(row);
 
       row.querySelector('.table-item-row').addEventListener('click', e => {
-        if (e.target.closest('.table-add-btn')) return;
+        if (e.target.closest('.table-add-btn') || e.target.closest('.table-query-btn')) return;
         toggleColumns(name, row);
+      });
+      row.querySelector('.table-query-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        loadTableQuery(name);
       });
       row.querySelector('.table-add-btn').addEventListener('click', e => {
         e.stopPropagation();
-        insertAtCursor(name);
+        insertAtCursor(`FROM ${name}`);
       });
     }
   }
@@ -74,6 +81,11 @@
       `<div class="table-column-item">${escapeHtml(c.name)} <span>${escapeHtml(c.type)}</span></div>`
     ).join('');
     colsEl.dataset.loaded = '1';
+  }
+
+  function loadTableQuery(name) {
+    $('sqlQuery').value = `SELECT * FROM ${name} LIMIT 100;`;
+    $('sqlQuery').focus();
   }
 
   function insertAtCursor(text) {
@@ -181,12 +193,17 @@
   }
 
   function displayError(message) {
+    const query = $('sqlQuery').value.trim();
+    let hint = '';
+    if (/syntax error/i.test(message) && /^\s*SELECT\s+\*\s+[a-z_]/i.test(query)) {
+      hint = '\n\nTip: use SELECT * FROM table_name — click ▶ next to a table in the sidebar.';
+    }
     $('resultsSection').hidden = false;
     $('resultsStatus').textContent = 'Error';
     $('resultsStatus').className = 'badge badge-danger';
     $('resultsCount').textContent = '';
     $('resultsRuntime').textContent = '';
-    $('resultsContent').innerHTML = `<div class="results-error">${escapeHtml(message)}</div>`;
+    $('resultsContent').innerHTML = `<div class="results-error">${escapeHtml(message + hint)}</div>`;
     currentResults = null;
     $('downloadResultsBtn').hidden = true;
   }

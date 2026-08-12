@@ -72,6 +72,12 @@ body.sql-console-page .header-top {
 .table-item-row:hover { background: #eef3fb; }
 .table-item-row.active { background: #dce8f8; }
 
+.table-item-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.table-query-btn,
 .table-add-btn {
   border: none;
   background: transparent;
@@ -83,7 +89,10 @@ body.sql-console-page .header-top {
   font-size: 14px;
 }
 
+.table-item-row:hover .table-query-btn,
 .table-item-row:hover .table-add-btn { opacity: 1; }
+
+.table-query-btn:hover,
 .table-add-btn:hover { background: var(--blue); color: white; }
 
 .table-columns-list {

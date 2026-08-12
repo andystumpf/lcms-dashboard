@@ -1,5 +1,9 @@
 node_modules/
+public/
 *.log
 .DS_Store
 data/lcms.db-wal
 data/lcms.db-shm
+db/d1-seed.sql
+.wrangler/
+.dev.vars

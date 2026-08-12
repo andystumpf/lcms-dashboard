@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lcms-dashboard",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "lcms.morejava.bid",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lcms-dashboard",
+      "database_id": "f399a5ff-e40b-4ee0-b74c-73629a7d07d8"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SAVED_QUERIES",
+      "id": "cd766637154c45b380185decd84ed04a"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
