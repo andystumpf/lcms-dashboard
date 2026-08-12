@@ -5,13 +5,12 @@ statistics in the United States. Every chart, table, and lookup is rendered live
 from a bundled SQLite database (`data/lcms.db`) — no scraper or build pipeline
 required.
 
-The bundled snapshot (captured **2026‑05‑28**) covers **5,986 congregations**
+The bundled snapshot covers **5,986 congregations**
 across **all 35 LCMS districts**, with up to 10 years of membership, worship,
 and financial history per church.
 
 LIVE DEMO: https://lcms.morejava.bid/
 
-Hosted on Cloudflare Workers with D1 — no cold-start wait.
 
 ## Quick start
 
