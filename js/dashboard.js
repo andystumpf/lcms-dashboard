@@ -8,6 +8,22 @@ const yearlyArr = (k) => LCMS.yearly[k] || [];
 
 function dColor(district) { return LCMS.districtColors[district] || '#888'; }
 
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function isFlatSeries(arr) {
+  if (!arr?.length) return true;
+  return arr.every(v => v === arr[0]);
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
 function deactivateTabs(btn) {
   btn.closest('.chart-card, .top50-card').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -166,7 +182,7 @@ function buildDistrictLegend(data) {
   });
   const el = document.getElementById('districtLegend');
   el.innerHTML = items.map(d =>
-    `<div class="legend-item"><span class="legend-dot" style="background:${dColor(d)}"></span>${d}</div>`
+    `<div class="legend-item"><span class="legend-dot" style="background:${dColor(d)}"></span>${escHtml(d)}</div>`
   ).join('');
 }
 
@@ -195,9 +211,9 @@ function renderTop50Table(data, sortCol, sortDir) {
     }).join('');
     tr.innerHTML = `
       <td><span class="rank-badge" style="background:${dColor(c.district)}">${i + 1}</span></td>
-      <td><strong>${c.name}</strong></td>
-      <td>${c.city}, ${c.st}</td>
-      <td><span class="district-tag" style="border-color:${dColor(c.district)};color:${dColor(c.district)}">${c.district}</span></td>
+      <td><strong>${escHtml(c.name)}</strong></td>
+      <td>${escHtml(c.city)}, ${escHtml(c.st)}</td>
+      <td><span class="district-tag" style="border-color:${dColor(c.district)};color:${dColor(c.district)}">${escHtml(c.district)}</span></td>
       ${metricCells}
     `;
     tbody.appendChild(tr);
@@ -471,7 +487,7 @@ function buildDistrictTable() {
     const tr = document.createElement('tr');
     tr.innerHTML =
       `<td><span class="rank-badge" style="background:${dColor(d.name)}">${i + 1}</span></td>` +
-      `<td><strong>${d.name}</strong></td>` +
+      `<td><strong>${escHtml(d.name)}</strong></td>` +
       `<td>${num(d.churches)}</td>` +
       `<td>${num(d.baptized)}</td>` +
       `<td>${num(d.communing)}</td>` +
@@ -560,20 +576,14 @@ function periodPctChange(arr, { minComparableRatio = 0 } = {}) {
 function updateKpis() {
   const s = scopedKpiSeries();
   const yrs = scopedYears();
-  const haveSeries = s.cong.length > 0;
-  const last = s.cong.length - 1;
   const startYr = yrs[0];
+  const last = s.cong.length - 1;
+  const isDistrict = STATE.district !== 'all';
 
-  // Headline values: prefer locally-scraped sums shown as "local of official",
-  // so users can see scrape progress in real time. Falls back to official-only
-  // when nothing scraped yet, or yearly-series value when available.
   const scoped = STATE.district === 'all'
     ? LCMS.churches
     : LCMS.churches.filter(c => c.district === STATE.district);
   const lSum = (f) => scoped.reduce((a, c) => a + (c[f] || 0), 0);
-  // For the "of" progress indicator, count churches that have a stats record
-  // (i.e. attendance/baptized came from a real scrape, not just a placeholder).
-  // This grows monotonically as `npm run stats` makes progress.
   const localKpis = {
     churches:   scoped.filter(c => c.att != null || c.baptized != null).length,
     baptized:   lSum('baptized') || null,
@@ -594,26 +604,38 @@ function updateKpis() {
     else                             el.textContent = fmt(lv);
   };
 
-  const isDistrict = STATE.district !== 'all';
-  // District view: use scraped church sums vs official district totals. We have no
-  // per-district yearly history — scaled national series wrongly shows 0 members and
-  // was falling back to synod-wide giving when local sum was empty.
-  if (isDistrict || !haveSeries) {
-    pair('kpi-congregations', localKpis.churches,   officialKpis.churches,   v => v.toLocaleString());
-    pair('kpi-baptized',      localKpis.baptized,   officialKpis.baptized,   fmtMembers);
-    pair('kpi-attendance',    localKpis.attendance, officialKpis.attendance, fmtMembers);
-    const gEl = document.getElementById('kpi-giving');
-    gEl.textContent = localKpis.giving ? fmtMoney(localKpis.giving) : '—';
+  // Always scraped-vs-official. The yearly congregations series is a constant
+  // history-sample size (not synod size over time) and must not be the headline.
+  pair('kpi-congregations', localKpis.churches,   officialKpis.churches,   v => v.toLocaleString());
+  pair('kpi-baptized',      localKpis.baptized,   officialKpis.baptized,   fmtMembers);
+  pair('kpi-attendance',    localKpis.attendance, officialKpis.attendance, fmtMembers);
+  const gEl = document.getElementById('kpi-giving');
+  if (localKpis.giving && officialKpis.giving && localKpis.giving !== officialKpis.giving) {
+    const a = fmtMoney(localKpis.giving), b = fmtMoney(officialKpis.giving);
+    gEl.textContent = a === b ? a : `${a} of ${b}`;
+  } else if (officialKpis.giving) {
+    gEl.textContent = fmtMoney(officialKpis.giving);
   } else {
-    document.getElementById('kpi-congregations').textContent = s.cong[last].toLocaleString();
-    document.getElementById('kpi-baptized').textContent      = fmtMembers(s.bap[last]);
-    document.getElementById('kpi-attendance').textContent    = fmtMembers(s.att[last]);
-    document.getElementById('kpi-giving').textContent        = s.giv[last] ? fmtMoney(s.giv[last]) : (localKpis.giving ? fmtMoney(localKpis.giving) : '—');
+    gEl.textContent = localKpis.giving ? fmtMoney(localKpis.giving) : '—';
   }
 
-  const setChange = (id, arr) => {
+  const snap = LCMS.snapshot || {};
+  const yearHint = snap.headlineYear ? ` · mostly ${snap.headlineYear}` : '';
+  setText('kpi-source-cong', 'With stats vs official synod count');
+  setText('kpi-source-bap', `Latest reported year per church${yearHint}`);
+  setText('kpi-source-att', `Latest reported year per church${yearHint}`);
+  setText('kpi-source-giv', snap.historyEnd
+    ? `PDF contributions · not the ${snap.historyStart}–${snap.historyEnd} trend`
+    : 'PDF contributions');
+
+  const setChange = (id, arr, opts = {}) => {
     const el = document.getElementById(id);
-    if (isDistrict || !haveSeries || arr.length < 2 || !arr[0]) {
+    if (opts.flatMessage && isFlatSeries(arr)) {
+      el.textContent = opts.flatMessage;
+      el.className   = 'kpi-change';
+      return;
+    }
+    if (isDistrict || arr.length < 2 || !arr[0]) {
       el.textContent = '—';
       el.className   = 'kpi-change';
       return;
@@ -622,7 +644,7 @@ function updateKpis() {
     el.textContent = `${p >= 0 ? '+' : '-'}${Math.abs(p).toFixed(1)}% since ${startYr}`;
     el.className   = 'kpi-change ' + (p >= 0 ? 'up' : 'down');
   };
-  setChange('kpi-change-cong', s.cong);
+  setChange('kpi-change-cong', s.cong, { flatMessage: 'No synod-size time series' });
   setChange('kpi-change-bap',  s.bap);
   setChange('kpi-change-att',  s.att);
   setChange('kpi-change-giv',  s.giv);
@@ -645,8 +667,7 @@ function buildIndexedTrendChart() {
   charts.indexedTrend = new Chart(ctx, {
     type: 'line',
     data: { labels: [], datasets: [
-      { label:'Congregations', borderColor:C.blue,   backgroundColor:'rgba(0,48,135,0.05)',  data:[], tension:0.35, borderWidth:2.5, pointRadius:2.5, pointHoverRadius:6 },
-      { label:'Baptized',      borderColor:C.blue2,  backgroundColor:'rgba(74,144,217,0.05)',data:[], tension:0.35, borderWidth:2.5, pointRadius:2.5, pointHoverRadius:6 },
+      { label:'Baptized',      borderColor:C.blue,   backgroundColor:'rgba(0,48,135,0.05)',  data:[], tension:0.35, borderWidth:2.5, pointRadius:2.5, pointHoverRadius:6 },
       { label:'Attendance',    borderColor:C.purple, backgroundColor:'rgba(142,68,173,0.05)',data:[], tension:0.35, borderWidth:2.5, pointRadius:2.5, pointHoverRadius:6 },
       { label:'Giving',        borderColor:C.green,  backgroundColor:'rgba(46,139,87,0.05)', data:[], tension:0.35, borderWidth:2.5, pointRadius:2.5, pointHoverRadius:6 }
     ]},
@@ -669,10 +690,9 @@ function refreshIndexedTrend() {
   const s = scopedKpiSeries();
   const idx = arr => (arr.length && arr[0]) ? arr.map(v => +((v / arr[0]) * 100).toFixed(1)) : arr.map(() => null);
   charts.indexedTrend.data.labels = scopedYears();
-  charts.indexedTrend.data.datasets[0].data = idx(s.cong);
-  charts.indexedTrend.data.datasets[1].data = idx(s.bap);
-  charts.indexedTrend.data.datasets[2].data = idx(s.att);
-  charts.indexedTrend.data.datasets[3].data = idx(s.giv);
+  charts.indexedTrend.data.datasets[0].data = idx(s.bap);
+  charts.indexedTrend.data.datasets[1].data = idx(s.att);
+  charts.indexedTrend.data.datasets[2].data = idx(s.giv);
   charts.indexedTrend.update();
 }
 
@@ -681,7 +701,7 @@ function buildKpiChangeChart() {
   const ctx = document.getElementById('kpiChangeChart').getContext('2d');
   charts.kpiChange = new Chart(ctx, {
     type: 'bar',
-    data: { labels: ['Congregations','Baptized','Attendance','Giving'], datasets: [{
+    data: { labels: ['Baptized','Attendance','Giving'], datasets: [{
       label:'% Change', data:[0,0,0,0],
       backgroundColor:[C.blue, C.blue2, C.purple, C.green],
       borderRadius:4, minBarLength:4
@@ -708,23 +728,20 @@ function buildKpiChangeChart() {
 function refreshKpiChange() {
   const s = scopedKpiSeries();
   const raw = [
-    periodPctChange(s.cong),
     periodPctChange(s.bap),
     periodPctChange(s.att),
     periodPctChange(s.giv, { minComparableRatio: 0.25 }),
   ];
   charts.kpiChange._rawPct = raw;
 
-  // Scale axis to membership metrics only — giving early years reflect a tiny
-  // scraped sample ($1M) vs full sample ($300M+), which would flatten other bars.
-  const membership = raw.slice(0, 3).filter(v => v != null).map(v => Math.abs(v));
+  const membership = raw.slice(0, 2).filter(v => v != null).map(v => Math.abs(v));
   const limit = membership.length ? Math.max(...membership, 1) * 1.25 : 15;
   charts.kpiChange.options.scales.x.min = -limit;
   charts.kpiChange.options.scales.x.max = limit;
 
   const display = raw.map((v, i) => {
     if (v == null) return null;
-    if (i === 3 && Math.abs(v) > limit) return Math.sign(v) * limit;
+    if (i === 2 && Math.abs(v) > limit) return Math.sign(v) * limit;
     return v;
   });
   charts.kpiChange.data.datasets[0].data = display;
@@ -851,9 +868,29 @@ function refreshTrendCharts() {
 }
 
 // ─── Main filter dispatcher ─────────────────────────────────────────────────────
+function fillSnapshotLegend() {
+  const el = document.getElementById('numbersLegend');
+  if (!el) return;
+  const snap = LCMS.snapshot;
+  if (!snap) { el.hidden = true; return; }
+  const hist = (snap.historyStart != null && snap.historyEnd != null)
+    ? `${snap.historyStart}–${snap.historyEnd}`
+    : 'the history window';
+  const head = snap.headlineYear != null ? String(snap.headlineYear) : 'the latest reported year';
+  const official = snap.officialCongregations != null
+    ? snap.officialCongregations.toLocaleString()
+    : '—';
+  el.textContent = `Headlines are each church’s latest reported year (mostly ${head}). `
+    + `Trend charts use ${hist} history for ${Number(snap.withHistory).toLocaleString()} congregations. `
+    + `Locator lists ${Number(snap.churches).toLocaleString()} records; official synod count is ${official}. `
+    + `Those figures are not interchangeable.`;
+  el.hidden = false;
+}
+
 function applyFilters() {
   window.DSTATE = STATE;
   const safe = (fn, label) => { try { fn(); } catch (e) { console.warn(`[dashboard] skipped ${label}: ${e.message}`); } };
+  safe(fillSnapshotLegend,        'fillSnapshotLegend');
   safe(updateContext,             'updateContext');
   safe(updateKpis,                'updateKpis');
   safe(refreshIndexedTrend,       'refreshIndexedTrend');

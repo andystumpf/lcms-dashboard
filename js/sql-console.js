@@ -126,7 +126,9 @@
     $('resultsStatus').textContent = 'Success';
     $('resultsStatus').className = 'badge badge-success';
 
-    $('resultsCount').textContent = `${data.row_count ?? 0} rows`;
+    $('resultsCount').textContent = data.truncated
+      ? `${data.row_count ?? 0} rows (truncated)`
+      : `${data.row_count ?? 0} rows`;
     $('resultsRuntime').textContent = `(${data.execution_time ?? 0}ms)`;
 
     const results = data.results || [];

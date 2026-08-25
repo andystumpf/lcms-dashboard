@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import { before, describe, it } from 'node:test';
+
+import loadLcmsFromDb from '../lib/load-from-sql.mjs';
+import { headlineKpis, isFlatSeries } from '../lib/dashboard-math.mjs';
+import { DB_PATH, requireDb } from './helpers.mjs';
+
+let LCMS;
+
+before(() => {
+  requireDb();
+  LCMS = loadLcmsFromDb(DB_PATH);
+});
+
+describe('LCMS payload contract', () => {
+  it('loads a well-formed snapshot', () => {
+    assert.ok(Array.isArray(LCMS.churches));
+    assert.ok(LCMS.churches.length >= 5000);
+    assert.equal(LCMS.districts.length, 35);
+    assert.ok(LCMS.summary);
+    assert.ok(LCMS.yearly.years.length >= 8);
+    assert.ok(LCMS.snapshot);
+    assert.equal(LCMS.snapshot.churches, LCMS.churches.length);
+    assert.equal(LCMS.snapshot.withHistory, LCMS.churches.filter(c => c.history?.years?.length).length);
+  });
+
+  it('does not use the flat history sample as the congregation headline', () => {
+    const { local, official } = headlineKpis(LCMS);
+    const sample = LCMS.yearly.congregations[LCMS.yearly.congregations.length - 1];
+    assert.equal(isFlatSeries(LCMS.yearly.congregations), true);
+    assert.equal(official.churches, LCMS.summary.congregations);
+    assert.notEqual(local.churches, sample);
+    assert.notEqual(official.churches, sample);
+  });
+
+  it('attaches similar as a peer-average object, not the unused integer column', () => {
+    const withPeers = LCMS.churches.filter(c => c.similar?.peerCount);
+    assert.ok(withPeers.length > 1000);
+    const sample = withPeers[0].similar;
+    assert.equal(typeof sample, 'object');
+    assert.equal(typeof sample.peerCount, 'number');
+    assert.ok(sample.peerCount >= 2);
+    assert.ok('weeklyAttendance' in sample);
+    assert.ok('confirmations' in sample);
+    assert.notEqual(typeof sample, 'number');
+  });
+
+  it('computes per-member giving and confirmations consistently', () => {
+    const withGiving = LCMS.churches.find(c => c.giving && c.baptized && c.perMemberGiving);
+    assert.ok(withGiving);
+    assert.ok(withGiving.perMemberGiving > 0);
+
+    const withConf = LCMS.churches.filter(c => c.conf != null);
+    assert.ok(withConf.length > 1000);
+    for (const c of withConf.slice(0, 50)) {
+      assert.ok(c.conf >= 0);
+    }
+  });
+
+  it('normalizes district names so churches join the district list', () => {
+    const names = new Set(LCMS.districts.map(d => d.name));
+    const unknown = LCMS.churches.filter(c => c.district && !names.has(c.district));
+    assert.equal(unknown.length, 0);
+    for (const name of names) {
+      assert.ok(!/district$/i.test(name));
+    }
+  });
+
+  it('keeps headline year and history end distinct when the snapshot is mixed-year', () => {
+    assert.ok(LCMS.snapshot.headlineYear);
+    assert.ok(LCMS.snapshot.historyEnd);
+    assert.notEqual(LCMS.snapshot.headlineYear, LCMS.snapshot.historyEnd);
+  });
+});

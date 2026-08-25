@@ -48,10 +48,11 @@ async function handleSqlRoutes(request, env, path) {
   const db = env.DB;
   const kv = env.SAVED_QUERIES;
 
-  if (path === '/api/sql/execute' && request.method === 'POST') {
-    const body = await readBody(request);
-    return sendJson(await executeSql(db, body.query || ''));
-  }
+      if (path === '/api/sql/execute' && request.method === 'POST') {
+        const body = await readBody(request);
+        const result = await executeSql(db, body.query || '');
+        return sendJson(result, result.success ? 200 : 400);
+      }
 
   if (path === '/api/sql/transaction' && request.method === 'POST') {
     return sendJson(runTransaction(), 403);

@@ -103,12 +103,17 @@
 
   function renderDetail(c) {
     const detail = $('lookupDetail');
-    const sim = c.similar || {};
     const locatorUrl = `https://locator.lcms.org/church/C/${c.cid}`;
     const pdfUrl = (c.districtLookupId && c.uuid)
       ? `https://locator.lcms.org/api/stats/${c.districtLookupId}/${c.uuid}`
       : null;
-    const last = c.history?.years?.length ? c.history.years[c.history.years.length - 1] : (c.lastStatYear || null);
+    const historyEnd = c.history?.years?.length ? c.history.years[c.history.years.length - 1] : null;
+    const headlineYear = c.lastStatYear || c.reportYear || historyEnd;
+    const yearMismatch = headlineYear && historyEnd && Number(headlineYear) !== Number(historyEnd);
+    const sim = (c.similar && typeof c.similar === 'object' && c.similar.peerCount) ? c.similar : null;
+    const similarConf = sim
+      ? (sim.confirmations ?? null)
+      : null;
 
     const ministries = (c.ministries || []).reduce((acc, m) => {
       (acc[m.category] = acc[m.category] || []).push(m.type);
@@ -139,24 +144,26 @@
       </div>
 
       <div class="lookup-kpis">
-        <div class="lookup-kpi"><div class="lookup-kpi-label">Baptized</div><div class="lookup-kpi-value">${num(c.baptized)}</div></div>
+        <div class="lookup-kpi"><div class="lookup-kpi-label">Baptized${headlineYear ? ' (' + headlineYear + ')' : ''}</div><div class="lookup-kpi-value">${num(c.baptized)}</div></div>
         <div class="lookup-kpi"><div class="lookup-kpi-label">Communing</div><div class="lookup-kpi-value">${num(c.communing)}</div></div>
         <div class="lookup-kpi"><div class="lookup-kpi-label">Avg Weekly Attendance</div><div class="lookup-kpi-value">${num(c.att)}</div></div>
-        <div class="lookup-kpi"><div class="lookup-kpi-label">Contributions${last ? ' (' + last + ')' : ''}</div><div class="lookup-kpi-value">${c.giving ? money(c.giving) : '—'}</div></div>
+        <div class="lookup-kpi"><div class="lookup-kpi-label">Contributions${c.reportYear || headlineYear ? ' (' + (c.reportYear || headlineYear) + ')' : ''}</div><div class="lookup-kpi-value">${c.giving ? money(c.giving) : '—'}</div></div>
         <div class="lookup-kpi"><div class="lookup-kpi-label">At-Home Expenses</div><div class="lookup-kpi-value">${c.atHomeExpenses ? money(c.atHomeExpenses) : '—'}</div></div>
         <div class="lookup-kpi"><div class="lookup-kpi-label">$ / Conf. Member</div><div class="lookup-kpi-value">${c.contribsPerConfirmedMember ? money(c.contribsPerConfirmedMember) : (c.perMemberGiving ? money(c.perMemberGiving) : '—')}</div></div>
         <div class="lookup-kpi"><div class="lookup-kpi-label">Organized</div><div class="lookup-kpi-value">${escHtml(c.dateOrganized || '—')}</div></div>
       </div>
+      ${yearMismatch ? `<p class="lookup-year-note">Headline stats are ${headlineYear}; the trend chart ends in ${historyEnd}.</p>` : ''}
 
       <div class="lookup-grid">
         <div class="lookup-panel">
-          <h3>10-Year Trend ${last ? `<span class="pill-mini">through ${last}</span>` : ''}</h3>
+          <h3>10-Year Trend ${historyEnd ? `<span class="pill-mini">through ${historyEnd}</span>` : ''}</h3>
           <div class="chart-container" style="height:240px"><canvas id="lookupTrendCanvas"></canvas></div>
         </div>
 
+        ${sim ? `
         <div class="lookup-panel">
           <h3>This Congregation vs. Similar</h3>
-          <p class="chart-subtitle">Similar = other LCMS congregations with comparable confirmed membership</p>
+          <p class="chart-subtitle">Average of ${sim.peerCount} churches with comparable communing membership (&plusmn;${Math.round((sim.band || 0.25) * 100)}%)</p>
           <table class="stats-table lookup-compare">
             <thead><tr><th>Metric</th><th>This</th><th>Similar</th></tr></thead>
             <tbody>
@@ -164,10 +171,14 @@
               ${similarRow('Weekly Visitors',      c.weeklyVisitors,  sim.weeklyVisitors)}
               ${similarRow('% Visitors',           c.percentVisitors, sim.percentVisitors, pct)}
               ${similarRow('Child Baptisms',       c.baptisms,        sim.childBaptisms)}
-              ${similarRow('Confirmations',        c.conf,            (sim.juniorConfirmations || 0) + (sim.adultConfirmations || 0))}
+              ${similarRow('Confirmations',        c.conf,            similarConf)}
             </tbody>
           </table>
-        </div>
+        </div>` : `
+        <div class="lookup-panel">
+          <h3>This Congregation vs. Similar</h3>
+          <p class="chart-subtitle">Not enough congregations with comparable communing membership to build a peer average.</p>
+        </div>`}
       </div>
 
       ${(c.schools?.length || Object.keys(ministries).length || c.services?.length) ? `

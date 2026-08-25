@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LCMS Churches Dashboard &mdash; United States</title>
-  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/style.css?v=13">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -81,23 +81,29 @@ npm start
       <div class="kpi-value" id="kpi-congregations">&mdash;</div>
       <div class="kpi-label" id="kpi-label-cong">Active Congregations</div>
       <div class="kpi-change" id="kpi-change-cong">&mdash;</div>
+      <div class="kpi-source" id="kpi-source-cong"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-value" id="kpi-baptized">&mdash;</div>
       <div class="kpi-label">Baptized Members</div>
       <div class="kpi-change" id="kpi-change-bap">&mdash;</div>
+      <div class="kpi-source" id="kpi-source-bap"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-value" id="kpi-attendance">&mdash;</div>
       <div class="kpi-label">Avg Weekly Attendance</div>
       <div class="kpi-change" id="kpi-change-att">&mdash;</div>
+      <div class="kpi-source" id="kpi-source-att"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-value" id="kpi-giving">&mdash;</div>
       <div class="kpi-label">Total Annual Giving</div>
       <div class="kpi-change" id="kpi-change-giv">&mdash;</div>
+      <div class="kpi-source" id="kpi-source-giv"></div>
     </div>
   </div>
+
+  <p class="numbers-legend" id="numbersLegend" hidden></p>
 
   <!-- ════════════════════════════════════════════════════════════ -->
   <!--  KEY INDICATORS — reacts to District + Period filters        -->
@@ -110,7 +116,7 @@ npm start
   <div class="charts-row charts-row-2">
     <div class="chart-card">
       <h3>Indexed Trajectory <span class="pill-mini">period start = 100</span></h3>
-      <div class="chart-subtitle">Normalized comparison of all four headline KPIs across the selected window</div>
+      <div class="chart-subtitle">Normalized comparison of baptized, attendance, and giving across the selected window. Congregation count is not a time series in this snapshot.</div>
       <div class="chart-container" style="height:260px"><canvas id="indexedTrendChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -123,7 +129,7 @@ npm start
   <div class="charts-row charts-row-2" style="margin-bottom:8px">
     <div class="chart-card">
       <h3>Members per Congregation</h3>
-      <div class="chart-subtitle">Average baptized membership per active congregation</div>
+      <div class="chart-subtitle">Average baptized membership among congregations with 10-year history</div>
       <div class="chart-container" style="height:240px"><canvas id="membersPerChurchChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -207,7 +213,7 @@ npm start
   <div class="charts-row charts-row-2">
     <div class="chart-card">
       <h3>Total Annual Giving</h3>
-      <div class="chart-subtitle">Contributions from scraped congregation PDFs &middot; millions USD</div>
+      <div class="chart-subtitle">Contributions from congregation PDFs by history year &middot; millions USD &middot; not the same year as headline KPIs</div>
       <div class="chart-container" style="height:280px"><canvas id="givingTrendChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -304,11 +310,11 @@ npm start
 
 </main>
 
-<script src="js/data.js?v=4"></script>
-<script src="js/data-loader.js?v=6"></script>
-<script src="js/dashboard.js?v=20"></script>
+<script src="js/data.js?v=5"></script>
+<script src="js/data-loader.js?v=7"></script>
+<script src="js/dashboard.js?v=21"></script>
 <script src="js/story-charts.js?v=2"></script>
 <script src="js/church-search.js?v=1"></script>
-<script src="js/church-lookup.js?v=11"></script>
+<script src="js/church-lookup.js?v=12"></script>
 </body>
 </html>

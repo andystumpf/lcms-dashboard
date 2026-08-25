@@ -184,6 +184,23 @@ body {
 .kpi-change { font-size: 11px; margin-top: 6px; }
 .kpi-change.down { color: #C0392B; }
 .kpi-change.up   { color: #27AE60; }
+.kpi-source {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.35;
+  min-height: 1.35em;
+}
+.numbers-legend {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 20px;
+  padding: 10px 14px;
+  background: #F7F8FB;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
 
 /* ── Section Title ── */
 .section-title {
@@ -496,7 +513,15 @@ body {
   border-radius: 10px; padding: 14px 16px;
 }
 .lookup-panel h3 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
-.lookup-compare td { padding: 6px 10px; font-size: 12px; }
+.lookup-year-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  background: #F7F8FB;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
 .lookup-compare .muted { color: var(--muted); }
 .muted { color: var(--muted); }
 
