@@ -126,5 +126,6 @@ describe('LCMS payload contract', () => {
     assert.equal(health.duplicateNameGroups, 23);
     assert.equal(health.givingHeadlineMillions, LCMS.snapshot.givingHeadlineMillions);
     assert.equal(health.givingHistoryMillions, LCMS.snapshot.givingHistoryMillions);
+    assert.equal(health.storyMathErrors, 0);
   });
 });

@@ -330,6 +330,7 @@ describe('describeHealth', () => {
     assert.equal(health.districtYearly, 2);
     assert.equal(health.members, 1);
     assert.equal(health.duplicateNameGroups, 0);
+    assert.equal(health.storyMathErrors, 0);
   });
 });
 

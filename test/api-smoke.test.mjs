@@ -119,6 +119,7 @@ describe('HTTP smoke', () => {
     assert.ok(Number.isInteger(body.headlineHistoryMismatch));
     assert.equal(body.duplicateNameGroups, 23);
     assert.ok(body.givingHeadlineMillions > body.givingHistoryMillions);
+    assert.equal(body.storyMathErrors, 0);
   });
 
   it('serves the dashboard pages', async () => {
@@ -128,6 +129,7 @@ describe('HTTP smoke', () => {
       const html = buf.toString('utf8');
       assert.match(html, /<html/i);
       if (path === '/compare.html') assert.match(html, /compareYearNote/);
+      if (path === '/index.html' || path === '/') assert.match(html, /districtLeagueSubtitle/);
     }
   });
 

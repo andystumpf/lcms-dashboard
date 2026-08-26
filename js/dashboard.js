@@ -4,6 +4,15 @@ Chart.defaults.color = '#6B7FA3';
 
 const C = { blue:'#003087', gold:'#C7A84B', blue2:'#4A90D9', green:'#2E8B57', red:'#C0392B', orange:'#E67E22', purple:'#8E44AD', teal:'#16A085' };
 const charts = {};
+window.__lcmsErrors = window.__lcmsErrors || [];
+function recordUiError(label, err) {
+  const message = err?.message || String(err);
+  window.__lcmsErrors.push({ label, message });
+  console.warn(`[dashboard] skipped ${label}: ${message}`);
+}
+function safe(fn, label) {
+  try { fn(); } catch (e) { recordUiError(label, e); }
+}
 const yearlyArr = (k) => (activeYearly()[k] || []);
 
 const NATIONAL_ONLY_YEARLY = [
@@ -521,6 +530,10 @@ function buildMemberFlowChart() {
 function buildDistrictTable() {
   const tbody = document.getElementById('districtTableBody');
   if (!tbody) return;
+  const sub = document.getElementById('districtLeagueSubtitle');
+  if (sub) {
+    sub.textContent = 'PDF district headlines · not the history-window sums used in trend charts · ranked by congregations';
+  }
   const num = (v) => (v == null) ? '—' : v.toLocaleString();
   const money = (v) => (v == null) ? '—' : `$${v.toFixed(1)}M`;
   const sorted = [...LCMS.districts].sort((a, b) => (b.churches ?? -1) - (a.churches ?? -1));
@@ -950,7 +963,6 @@ function refreshTop50() {
 
 function applyFilters() {
   window.DSTATE = STATE;
-  const safe = (fn, label) => { try { fn(); } catch (e) { console.warn(`[dashboard] skipped ${label}: ${e.message}`); } };
   safe(fillSnapshotLegend,        'fillSnapshotLegend');
   safe(updateContext,             'updateContext');
   safe(updateKpis,                'updateKpis');
@@ -1042,9 +1054,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Defensive: any single builder failing on incomplete (partial) live data
-  // must not blank the whole dashboard. Log the failure, render what we can.
-  const safe = (fn, label) => { try { fn(); } catch (e) { console.warn(`[dashboard] skipped ${label}: ${e.message}`); } };
-
+  // must not blank the whole dashboard. Errors are recorded on window.__lcmsErrors.
   safe(populateDistrictFilter,                              'populateDistrictFilter');
   safe(populateYearFilters,                                 'populateYearFilters');
   safe(buildTop50Chart,                                     'buildTop50Chart');

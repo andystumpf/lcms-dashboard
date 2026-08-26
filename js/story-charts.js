@@ -1,5 +1,5 @@
 // Forty decade-story charts — membership, worship, giving, congregation health.
-// Requires LCMS, Chart, dashboard DSTATE (set in applyFilters).
+// Aggregation helpers live in lib/story-math.mjs; keep this copy aligned.
 
 (function () {
   'use strict';
@@ -582,7 +582,10 @@
   window.initStoryCharts = function () {
     mountStorySection();
     allDefs().forEach(def => {
-      try { def.build(); } catch (e) { console.warn('[story]', def.id, e.message); }
+      try { def.build(); } catch (e) {
+        (window.__lcmsErrors = window.__lcmsErrors || []).push({ label: def.id, message: e.message });
+        console.warn('[story]', def.id, e.message);
+      }
     });
     window.refreshStoryCharts();
   };
@@ -597,7 +600,10 @@
     const el = document.getElementById('storyContext');
     if (el) el.textContent = `${scope} · ${range}${extra}`;
     allDefs().forEach(def => {
-      try { def.refresh(); } catch (e) { console.warn('[story refresh]', def.id, e.message); }
+      try { def.refresh(); } catch (e) {
+        (window.__lcmsErrors = window.__lcmsErrors || []).push({ label: `${def.id}:refresh`, message: e.message });
+        console.warn('[story refresh]', def.id, e.message);
+      }
     });
   };
 })();
