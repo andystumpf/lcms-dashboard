@@ -10,7 +10,20 @@
   };
 
   const charts = {};
-  const ya = (k) => LCMS.yearly[k] || [];
+  const ya = (k) => {
+    const st = state();
+    const nat = LCMS.yearly || {};
+    if (!st.district || st.district === 'all') return nat[k] || [];
+    const years = nat.years || [];
+    const nationalOnly = new Set([
+      'totalGivingMillions', 'atHomeMillions', 'infantBaptisms', 'adultBaptisms',
+      'confirmations', 'newMembers', 'removals'
+    ]);
+    if (nationalOnly.has(k)) return years.map(() => null);
+    const d = LCMS.districtYearly && LCMS.districtYearly[st.district];
+    if (!d) return (k === 'years') ? years : years.map(() => null);
+    return d[k] != null ? d[k] : (nat[k] || []);
+  };
 
   function state() {
     return window.DSTATE || { district: 'all', startYear: null, endYear: null };
@@ -578,8 +591,11 @@
     const yrsList = yrs();
     const scope = state().district === 'all' ? 'National' : state().district;
     const range = yrsList.length ? `${yrsList[0]}–${yrsList[yrsList.length - 1]}` : '—';
+    const extra = state().district === 'all'
+      ? ''
+      : ' · history from congregations; giving/baptisms hidden (no district series)';
     const el = document.getElementById('storyContext');
-    if (el) el.textContent = `${scope} · ${range}`;
+    if (el) el.textContent = `${scope} · ${range}${extra}`;
     allDefs().forEach(def => {
       try { def.refresh(); } catch (e) { console.warn('[story refresh]', def.id, e.message); }
     });

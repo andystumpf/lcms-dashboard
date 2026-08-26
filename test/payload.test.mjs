@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
 
 import loadLcmsFromDb from '../lib/load-from-sql.mjs';
-import { headlineKpis, isFlatSeries } from '../lib/dashboard-math.mjs';
+import { headlineKpis, isFlatSeries, scopedKpiSeries, scaleSeries } from '../lib/dashboard-math.mjs';
 import { DB_PATH, requireDb } from './helpers.mjs';
 
 let LCMS;
@@ -70,5 +70,28 @@ describe('LCMS payload contract', () => {
     assert.ok(LCMS.snapshot.headlineYear);
     assert.ok(LCMS.snapshot.historyEnd);
     assert.notEqual(LCMS.snapshot.headlineYear, LCMS.snapshot.historyEnd);
+  });
+
+  it('exposes district yearly series that match congregation history sums', () => {
+    assert.equal(Object.keys(LCMS.districtYearly).length, LCMS.districts.length);
+    const years = LCMS.yearly.years;
+    const last = years[years.length - 1];
+    const yi = years.indexOf(last);
+    const name = 'Texas';
+    assert.ok(LCMS.districtYearly[name]);
+    let expected = 0;
+    for (const c of LCMS.churches) {
+      if (c.district !== name) continue;
+      const i = c.history?.years?.indexOf(last);
+      if (i == null || i < 0) continue;
+      expected += c.history.baptized[i] ?? 0;
+    }
+    assert.equal(LCMS.districtYearly[name].baptizedMembers[yi], expected);
+    const s = scopedKpiSeries(LCMS, { district: name, startYear: years[0], endYear: last });
+    const d = LCMS.districts.find(x => x.name === name);
+    const scaledLast = scaleSeries(LCMS.yearly.baptizedMembers, d, 'baptized').at(-1);
+    assert.equal(s.bap.at(-1), LCMS.districtYearly[name].baptizedMembers[yi]);
+    assert.notEqual(Math.round(scaledLast), s.bap.at(-1));
+    assert.equal(s.giv.every(v => v == null), true);
   });
 });

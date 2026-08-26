@@ -36,6 +36,7 @@ const LCMS = {
   districts: [],
   stateTop20: [],
   churchSizes: [],
+  districtYearly: {},
   snapshot: null
 };
 // Expose for scripts that check window.LCMS (const alone is not a window property).

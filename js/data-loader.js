@@ -33,6 +33,7 @@
     }));
     LCMS.stateTop20  = data.stateTop20  || [];
     LCMS.churchSizes = data.churchSizes || [];
+    LCMS.districtYearly = data.districtYearly || {};
     LCMS.snapshot    = data.snapshot || null;
     const palette = ['#003087','#C7A84B','#2E8B57','#4A90D9','#8E44AD','#E67E22','#16A085','#C0392B','#2C3E50','#7F8C8D'];
     LCMS.districtColors = {};

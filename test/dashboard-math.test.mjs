@@ -6,9 +6,11 @@ import {
   deriveSimilarPeers,
   deriveStateTop20,
   describeSnapshot,
+  deriveDistrictYearly,
   headlineKpis,
   isFlatSeries,
   periodPctChange,
+  scaleSeries,
   scopedKpiSeries,
   snapshotLegendText,
   topN,
@@ -131,7 +133,7 @@ describe('scopedKpiSeries / isFlatSeries', () => {
     assert.equal(isFlatSeries([100, 90]), false);
   });
 
-  it('scales national series by district share', () => {
+  it('uses district history, not a scaled national shape', () => {
     const LCMS = {
       yearly: {
         years: [2023, 2024],
@@ -140,11 +142,50 @@ describe('scopedKpiSeries / isFlatSeries', () => {
         avgWeeklyAttendance: [400, 360],
         totalGivingMillions: [10, 12]
       },
-      districts: [{ name: 'Texas', churches: 25, baptized: 250, attendance: 100, giving: 3 }]
+      districts: [{ name: 'Texas', churches: 25, baptized: 250, attendance: 100, giving: 3 }],
+      districtYearly: {
+        Texas: {
+          years: [2023, 2024],
+          congregations: [20, 20],
+          baptizedMembers: [200, 180],
+          avgWeeklyAttendance: [80, 70],
+          sampleSize: [20, 20]
+        }
+      }
     };
     const s = scopedKpiSeries(LCMS, { district: 'Texas', startYear: 2023, endYear: 2024 });
-    assert.equal(s.cong[1], 25);
-    assert.equal(s.bap[1], 250);
+    assert.equal(s.cong[1], 20);
+    assert.equal(s.bap[1], 180);
+    assert.equal(s.att[1], 70);
+    assert.equal(s.giv[1], null);
+    const scaled = scaleSeries(LCMS.yearly.baptizedMembers, LCMS.districts[0], 'baptized');
+    assert.notEqual(s.bap[1], Math.round(scaled[1]));
+  });
+});
+
+describe('deriveDistrictYearly', () => {
+  it('sums history by district and year', () => {
+    const years = [2023, 2024];
+    const churches = [
+      {
+        district: 'Texas',
+        history: { years: [2023, 2024], baptized: [10, 8], confirmed: [7, 6], attendance: [4, 3] }
+      },
+      {
+        district: 'Texas',
+        history: { years: [2024], baptized: [5], confirmed: [4], attendance: [2] }
+      },
+      {
+        district: 'Michigan',
+        history: { years: [2023, 2024], baptized: [100, 90], confirmed: [80, 70], attendance: [40, 30] }
+      }
+    ];
+    const out = deriveDistrictYearly(churches, years);
+    assert.equal(out.Texas.baptizedMembers[0], 10);
+    assert.equal(out.Texas.baptizedMembers[1], 13);
+    assert.equal(out.Texas.congregations[0], 1);
+    assert.equal(out.Texas.congregations[1], 2);
+    assert.equal(out.Michigan.avgWeeklyAttendance[1], 30);
   });
 });
 

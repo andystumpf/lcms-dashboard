@@ -4,7 +4,34 @@ Chart.defaults.color = '#6B7FA3';
 
 const C = { blue:'#003087', gold:'#C7A84B', blue2:'#4A90D9', green:'#2E8B57', red:'#C0392B', orange:'#E67E22', purple:'#8E44AD', teal:'#16A085' };
 const charts = {};
-const yearlyArr = (k) => LCMS.yearly[k] || [];
+const yearlyArr = (k) => (activeYearly()[k] || []);
+
+const NATIONAL_ONLY_YEARLY = [
+  'totalGivingMillions', 'atHomeMillions', 'infantBaptisms', 'adultBaptisms',
+  'confirmations', 'newMembers', 'removals'
+];
+
+function activeYearly() {
+  const nat = LCMS.yearly || {};
+  const years = nat.years || [];
+  if (STATE.district === 'all') return nat;
+  const nulls = years.map(() => null);
+  const blocked = {};
+  for (const k of NATIONAL_ONLY_YEARLY) blocked[k] = nulls;
+  const d = LCMS.districtYearly && LCMS.districtYearly[STATE.district];
+  if (!d) {
+    return {
+      ...nat,
+      baptizedMembers: nulls,
+      communingMembers: nulls,
+      avgWeeklyAttendance: nulls,
+      congregations: nulls,
+      sampleSize: nulls,
+      ...blocked
+    };
+  }
+  return { ...nat, ...d, ...blocked };
+}
 
 function dColor(district) { return LCMS.districtColors[district] || '#888'; }
 
@@ -64,9 +91,14 @@ function top50CellFmt(field, v) {
 let currentTop50Metric = 'att';
 const top50TableSort = { col: 'att', dir: 'desc' };
 
+function scopedChurchList() {
+  if (STATE.district === 'all') return LCMS.churches;
+  return LCMS.churches.filter(c => c.district === STATE.district);
+}
+
 function getTop50ByField(field, dir = 'desc') {
   const val = (c) => c[field];
-  return [...LCMS.churches]
+  return [...scopedChurchList()]
     .filter(c => val(c) != null && val(c) > 0)
     .sort((a, b) => {
       const diff = dir === 'desc' ? val(b) - val(a) : val(a) - val(b);
@@ -90,7 +122,8 @@ function updateTop50Chart(metricKey, data) {
   charts.top50.data.datasets[0].borderColor     = data.map(c => dColor(c.district));
   charts.top50.options = top50Opts(metricKey);
   charts.top50.update();
-  document.getElementById('top50Title').textContent = `Top 50 LCMS Congregations by ${m.label}`;
+  const scope = STATE.district === 'all' ? 'LCMS Congregations' : `${STATE.district} Congregations`;
+  document.getElementById('top50Title').textContent = `Top 50 ${scope} by ${m.label}`;
   buildDistrictLegend(data);
 }
 
@@ -530,29 +563,16 @@ function scopedSeries(f) {
   return yearlyArr(f).slice(startIdx, endIdx + 1);
 }
 
-// Scale national yearly series by the selected district's latest-year share of
-// that metric (we have current per-district totals from the locator API but no
-// per-district yearly history). The series shape is national; only level shifts.
-function scaleSeries(field, districtField) {
-  const nat = LCMS.yearly[field] || [];
-  if (STATE.district === 'all' || !nat.length) return nat.slice();
-  const d = LCMS.districts.find(x => x.name === STATE.district);
-  if (!d) return nat.slice();
-  const natLast = nat[nat.length - 1];
-  if (!natLast) return nat.slice();
-  const ratio = (d[districtField] ?? 0) / natLast;
-  return nat.map(v => v * ratio);
-}
-
-// Series of [congregations, baptized, attendance, givingMillions] respecting district.
 function scopedKpiSeries() {
+  const y = activeYearly();
   const { startIdx, endIdx } = yearBounds();
-  const slice = (field, df) => scaleSeries(field, df).slice(startIdx, endIdx + 1);
+  const cut = (arr) => (arr || []).slice(startIdx, endIdx + 1);
+  const round = (arr) => cut(arr).map(v => v == null ? null : Math.round(v));
   return {
-    cong: slice('congregations',       'churches'  ).map(Math.round),
-    bap:  slice('baptizedMembers',     'baptized'  ).map(Math.round),
-    att:  slice('avgWeeklyAttendance', 'attendance').map(Math.round),
-    giv:  slice('totalGivingMillions', 'giving'    )
+    cong: round(y.congregations),
+    bap:  round(y.baptizedMembers),
+    att:  round(y.avgWeeklyAttendance),
+    giv:  cut(y.totalGivingMillions)
   };
 }
 
@@ -658,7 +678,10 @@ function updateContext() {
   const yrs = scopedYears();
   const scope = STATE.district === 'all' ? 'National' : STATE.district + ' District';
   const range = yrs.length ? `${yrs[0]}–${yrs[yrs.length-1]}` : '—';
-  document.getElementById('insightsContext').textContent = `${scope} • ${range}`;
+  const extra = STATE.district === 'all'
+    ? ''
+    : ' · history from congregation reports; giving/baptisms not available by district';
+  document.getElementById('insightsContext').textContent = `${scope} • ${range}${extra}`;
 }
 
 // ─── Insight Chart 1: Indexed Trajectory ────────────────────────────────────────
@@ -855,16 +878,47 @@ function refreshTrendCharts() {
   upd(charts.baptism,           [yearlyArr('infantBaptisms'), yearlyArr('confirmations')]);
   const pm = yearlyArr('totalGivingMillions').map((g,i)=>{
     const b = yearlyArr('baptizedMembers')[i];
-    return b ? Math.round((g*1e6)/b) : null;
+    return (g != null && b) ? Math.round((g*1e6)/b) : null;
   });
   upd(charts.perMemberGiving,   [pm]);
   const rates = yearlyArr('avgWeeklyAttendance').map((a,i)=>{
     const com = yearlyArr('communingMembers')[i];
-    return com ? +((a/com)*100).toFixed(1) : null;
+    return (a != null && com) ? +((a/com)*100).toFixed(1) : null;
   });
   upd(charts.attendanceRate,    [rates]);
   const net = yearlyArr('newMembers');
   upd(charts.memberFlow,        [net]);
+  refreshGivingDonut();
+}
+
+function refreshGivingDonut() {
+  const ch = charts.givingDonut;
+  if (!ch) return;
+  const scoped = STATE.district === 'all'
+    ? LCMS.churches
+    : LCMS.churches.filter(c => c.district === STATE.district);
+  const contrib = +(scoped.reduce((a, c) => a + (c.giving || 0), 0) / 1e6).toFixed(1);
+  const atHome = +(scoped.reduce((a, c) => a + (c.atHomeExpenses || 0), 0) / 1e6).toFixed(1);
+  const total = contrib + atHome;
+  ch.data.datasets[0].data = [contrib, atHome];
+  ch.options.plugins.tooltip.callbacks.label = c =>
+    ` $${c.parsed}M  (${total ? ((c.parsed / total) * 100).toFixed(1) : '0'}%)`;
+  ch.update();
+  const subEl = document.getElementById('givingDonutSubtitle');
+  const snap = LCMS.snapshot || {};
+  const year = snap.headlineYear ? String(snap.headlineYear) : 'latest report year';
+  const scope = STATE.district === 'all' ? 'National' : STATE.district;
+  if (subEl) subEl.textContent = `${scope} · contributions vs at-home · ${year} PDF headlines (not the history window)`;
+  const legend = document.getElementById('givingDonutLegend');
+  if (legend) {
+    const fmt = (v) => v >= 1000 ? `$${(v / 1000).toFixed(2)}B` : `$${v}M`;
+    const pct = (v) => total ? `${((v / total) * 100).toFixed(1)}%` : '—';
+    legend.innerHTML =
+      `<div class="donut-legend-item"><div style="width:12px;height:12px;border-radius:3px;background:#003087;flex-shrink:0;margin-top:3px"></div>` +
+      `<div><div style="font-size:13px;font-weight:600">Contributions</div><div style="font-size:11px;color:#6B7FA3">${fmt(contrib)} · ${pct(contrib)}</div></div></div>` +
+      `<div class="donut-legend-item"><div style="width:12px;height:12px;border-radius:3px;background:#C7A84B;flex-shrink:0;margin-top:3px"></div>` +
+      `<div><div style="font-size:13px;font-weight:600">At-Home Expenses</div><div style="font-size:11px;color:#6B7FA3">${fmt(atHome)} · ${pct(atHome)}</div></div></div>`;
+  }
 }
 
 // ─── Main filter dispatcher ─────────────────────────────────────────────────────
@@ -887,6 +941,14 @@ function fillSnapshotLegend() {
   el.hidden = false;
 }
 
+function refreshTop50() {
+  if (!charts.top50) return;
+  const data = getTop50Data(currentTop50Metric);
+  updateTop50Chart(currentTop50Metric, data);
+  const col = TOP50_SORT_COL[currentTop50Metric] || top50TableSort.col;
+  renderTop50Table(data, col, top50TableSort.dir);
+}
+
 function applyFilters() {
   window.DSTATE = STATE;
   const safe = (fn, label) => { try { fn(); } catch (e) { console.warn(`[dashboard] skipped ${label}: ${e.message}`); } };
@@ -898,6 +960,7 @@ function applyFilters() {
   safe(refreshMembersPerChurch,   'refreshMembersPerChurch');
   safe(refreshDistrictShare,      'refreshDistrictShare');
   safe(refreshTrendCharts,        'refreshTrendCharts');
+  safe(refreshTop50,              'refreshTop50');
   safe(() => { if (window.refreshStoryCharts) window.refreshStoryCharts(); }, 'refreshStoryCharts');
 }
 
