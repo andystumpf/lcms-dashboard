@@ -68,3 +68,23 @@ describe('duplicatePlaceKeys', () => {
     ]).size, 0);
   });
 });
+
+describe('browser search copy', () => {
+  it('keeps ranking and place-key rules aligned with lib/church-search.mjs', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { dirname, join } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const browser = await readFile(join(root, 'js/church-search.js'), 'utf8');
+    const lib = await readFile(join(root, 'lib/church-search.mjs'), 'utf8');
+    for (const needle of [
+      'if (fields.district === tok) return 2',
+      'districtWords',
+      'duplicatePlaceKeys',
+      'if (!name && !city && !st) return \'\''
+    ]) {
+      assert.match(browser, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      assert.match(lib, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    }
+  });
+});

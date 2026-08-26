@@ -52,6 +52,7 @@ npm start</pre>
   <div id="compareMetrics" class="chart-card compare-metrics" hidden>
     <h3>Metrics Comparison</h3>
     <div class="chart-subtitle">Latest scraped statistics for each congregation</div>
+    <p class="lookup-year-note" id="compareYearNote" hidden></p>
     <div class="compare-table-wrap">
       <table id="compareMetricsTable" class="stats-table compare-table"></table>
     </div>
@@ -59,7 +60,7 @@ npm start</pre>
 
   <div id="compareTrend" class="chart-card compare-trend" hidden>
     <h3>10-Year Trend</h3>
-    <div class="chart-subtitle">Overlaid history from congregation PDF stats</div>
+    <div class="chart-subtitle" id="compareTrendSubtitle">Overlaid history from congregation PDF stats</div>
     <div class="tab-nav compare-trend-tabs">
       <button type="button" class="tab-btn active" data-metric="baptized">Baptized</button>
       <button type="button" class="tab-btn" data-metric="attendance">Attendance</button>
@@ -124,6 +125,6 @@ npm start</pre>
 <script src="js/data.js?v=6"></script>
 <script src="js/data-loader.js?v=8"></script>
 <script src="js/church-search.js?v=3"></script>
-<script src="js/church-compare.js?v=3"></script>
+<script src="js/church-compare.js?v=4"></script>
 </body>
 </html>

@@ -70,6 +70,10 @@ function rawGet(path, headers = {}) {
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, buf: Buffer.concat(chunks) }));
     });
+    req.setTimeout(30000, () => {
+      req.destroy();
+      reject(new Error(`timeout ${path}`));
+    });
     req.on('error', reject);
     req.end();
   });
@@ -119,10 +123,11 @@ describe('HTTP smoke', () => {
 
   it('serves the dashboard pages', async () => {
     for (const path of ['/', '/index.html', '/compare.html', '/sql.html']) {
-      const res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(10000) });
-      assert.equal(res.status, 200, path);
-      const html = await res.text();
+      const { status, buf } = await rawGet(path);
+      assert.equal(status, 200, path);
+      const html = buf.toString('utf8');
       assert.match(html, /<html/i);
+      if (path === '/compare.html') assert.match(html, /compareYearNote/);
     }
   });
 

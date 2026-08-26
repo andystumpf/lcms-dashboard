@@ -11,6 +11,8 @@ import {
   headlineKpis,
   isFlatSeries,
   isMemberCongregation,
+  compareYearMismatchNote,
+  hasHeadlineHistoryYearGap,
   periodPctChange,
   scaleSeries,
   scopedKpiSeries,
@@ -87,6 +89,30 @@ describe('topN', () => {
     assert.deepEqual(topN(mixed, 'att', 50, 'desc', { membersOnly: true }).map(c => c.cid), [2]);
     assert.equal(isMemberCongregation(mixed[1]), true);
     assert.equal(isMemberCongregation(mixed[0]), false);
+  });
+});
+
+describe('compareYearMismatchNote', () => {
+  it('is empty when headline and history years match', () => {
+    const churches = [
+      { lastStatYear: 2024, history: { years: [2023, 2024] } },
+      { lastStatYear: 2024, history: { years: [2024] } }
+    ];
+    assert.equal(hasHeadlineHistoryYearGap(churches[0]), false);
+    assert.equal(compareYearMismatchNote(churches), '');
+  });
+
+  it('explains mixed headline and history years', () => {
+    const allGap = [
+      { lastStatYear: 2025, history: { years: [2024] } },
+      { lastStatYear: 2025, history: { years: [2024] } }
+    ];
+    assert.match(compareYearMismatchNote(allGap), /latest reported year/);
+    const mixed = [
+      { lastStatYear: 2025, history: { years: [2024] } },
+      { lastStatYear: 2024, history: { years: [2024] } }
+    ];
+    assert.equal(compareYearMismatchNote(mixed), '1 of 2 churches have headline stats from a later year than the trend chart.');
   });
 });
 
