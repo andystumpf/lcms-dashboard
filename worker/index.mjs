@@ -10,11 +10,16 @@ import {
   updateSavedQuery,
   deleteSavedQuery
 } from '../lib/sql-console-d1.mjs';
-import defaultSavedQueries from '../data/sql-saved-queries.json';
+import defaultSavedQueries from '../data/sql-saved-queries.json' with { type: 'json' };
 
 const CACHE_MS = 5000;
 let lcmsCache = null;
 let lcmsCacheAt = 0;
+
+export function resetWorkerCache() {
+  lcmsCache = null;
+  lcmsCacheAt = 0;
+}
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
