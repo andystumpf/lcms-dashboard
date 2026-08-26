@@ -74,5 +74,25 @@
     };
   }
 
-  window.ChurchSearch = { search, MAX_RESULTS };
+  function placeKey(c) {
+    const name = (c.name || '').trim().toLowerCase();
+    const city = (c.city || '').trim().toLowerCase();
+    const st = (c.st || c.state || '').trim().toUpperCase();
+    if (!name && !city && !st) return '';
+    return `${name}|${city}|${st}`;
+  }
+
+  function duplicatePlaceKeys(churches) {
+    const counts = new Map();
+    for (const c of churches || []) {
+      const k = placeKey(c);
+      if (!k) continue;
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    const dups = new Set();
+    for (const [k, n] of counts) if (n > 1) dups.add(k);
+    return dups;
+  }
+
+  window.ChurchSearch = { search, MAX_RESULTS, placeKey, duplicatePlaceKeys };
 })();

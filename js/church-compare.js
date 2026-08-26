@@ -46,6 +46,17 @@
   const num = (n) => (n == null || Number.isNaN(n)) ? '—' : Number(n).toLocaleString();
   const money = (n) => (n == null) ? '—' : '$' + Number(n).toLocaleString();
 
+  function resultPlaceLine(c, dupKeys) {
+    const key = ChurchSearch.placeKey(c);
+    const dup = key && dupKeys.has(key);
+    const zip = (c.zip || '').trim();
+    let loc = `${escHtml(c.city)}, ${escHtml(c.st)}`;
+    if (dup && zip) loc += ` ${escHtml(zip)}`;
+    const bits = [loc, escHtml(c.district)];
+    if (dup) bits.push('#' + c.cid);
+    return bits.join(' &middot; ');
+  }
+
   function fmtVal(c, m) {
     const v = c[m.key];
     if (m.fmt === 'money') {
@@ -480,6 +491,7 @@
       return;
     }
     const truncated = total > hits.length;
+    const dupKeys = ChurchSearch.duplicatePlaceKeys(LCMS.churches);
     const header = `
       <div class="lookup-result-header">
         Showing <strong>${available.length}</strong>${truncated ? ` of <strong>${total.toLocaleString()}</strong>` : ''} matches
@@ -490,7 +502,7 @@
         <span class="lookup-result-dot" style="background:${dColor(c.district, 0)}"></span>
         <span class="lookup-result-main">
           <span class="lookup-result-name">${escHtml(c.name)}</span>
-          <span class="lookup-result-sub">${escHtml(c.city)}, ${escHtml(c.st)} &middot; ${escHtml(c.district)}</span>
+          <span class="lookup-result-sub">${resultPlaceLine(c, dupKeys)}</span>
         </span>
         <span class="lookup-result-meta">
           ${c.att != null ? num(c.att) + ' avg' : '<span class="muted">no stats</span>'}

@@ -249,6 +249,23 @@ describe('describeSnapshot', () => {
     assert.match(snapshotLegendText(snap), /2025/);
     assert.match(snapshotLegendText(snap), /2015–2024/);
   });
+
+  it('counts duplicate name/city/state groups and distinct giving sources', () => {
+    const snap = describeSnapshot({
+      summary: { congregations: 5734 },
+      yearly: { years: [2023, 2024], totalGivingMillions: [1200, 1320.51] },
+      churches: [
+        { name: 'Trinity', city: 'Fort Wayne', st: 'IN', zip: '46816', giving: 1e6, lastStatYear: 2025, history: { years: [2024] } },
+        { name: 'Trinity', city: 'Fort Wayne', st: 'IN', zip: '46808', giving: 2e6, lastStatYear: 2025, history: { years: [2024] } },
+        { name: 'Zion', city: 'Chicago', st: 'IL', giving: 1.4477e9, lastStatYear: 2024, history: null }
+      ]
+    });
+    assert.equal(snap.duplicateNameGroups, 1);
+    assert.equal(snap.givingHistoryMillions, 1320.51);
+    assert.equal(snap.givingHeadlineMillions, 1450.7);
+    assert.match(snapshotLegendText(snap), /Congregation PDF contributions/);
+    assert.match(snapshotLegendText(snap), /synod giving series/);
+  });
 });
 
 describe('describeHealth', () => {
@@ -286,6 +303,7 @@ describe('describeHealth', () => {
     assert.equal(health.headlineHistoryMismatch, 1);
     assert.equal(health.districtYearly, 2);
     assert.equal(health.members, 1);
+    assert.equal(health.duplicateNameGroups, 0);
   });
 });
 

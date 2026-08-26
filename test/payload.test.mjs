@@ -112,4 +112,19 @@ describe('LCMS payload contract', () => {
     assert.equal(membersTop.length, 50);
     assert.ok(membersTop.every(isMemberCongregation));
   });
+
+  it('documents duplicate places and mismatched giving sources on the snapshot', () => {
+    assert.equal(LCMS.snapshot.duplicateNameGroups, 23);
+    assert.ok(LCMS.snapshot.givingHeadlineMillions > 1400);
+    assert.ok(LCMS.snapshot.givingHistoryMillions > 1200);
+    assert.notEqual(
+      Math.round(LCMS.snapshot.givingHeadlineMillions),
+      Math.round(LCMS.snapshot.givingHistoryMillions)
+    );
+    assert.match(LCMS.snapshot.legend, /Congregation PDF contributions/);
+    const health = describeHealth(LCMS);
+    assert.equal(health.duplicateNameGroups, 23);
+    assert.equal(health.givingHeadlineMillions, LCMS.snapshot.givingHeadlineMillions);
+    assert.equal(health.givingHistoryMillions, LCMS.snapshot.givingHistoryMillions);
+  });
 });

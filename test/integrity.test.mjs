@@ -125,4 +125,38 @@ describe('SQLite snapshot integrity', () => {
       conn.close();
     }
   });
+
+  it('keeps duplicate locator rows and distinct giving sources documented', () => {
+    const conn = db();
+    try {
+      const groups = conn.prepare(`
+        SELECT COUNT(*) AS n FROM (
+          SELECT name, city, state FROM churches GROUP BY 1, 2, 3 HAVING COUNT(*) > 1
+        )
+      `).get().n;
+      const dupChurches = conn.prepare(`
+        SELECT COUNT(*) AS n FROM churches
+        WHERE (name, city, state) IN (
+          SELECT name, city, state FROM churches GROUP BY 1, 2, 3 HAVING COUNT(*) > 1
+        )
+      `).get().n;
+      const nat = conn.prepare(`
+        SELECT total_giving_millions AS m FROM national_yearly ORDER BY year DESC LIMIT 1
+      `).get().m;
+      const scraped = conn.prepare(`
+        SELECT total_giving_millions_scraped AS m FROM synod_summary WHERE id = 1
+      `).get().m;
+      const summed = conn.prepare(`
+        SELECT ROUND(SUM(contributions) / 1e6, 1) AS m FROM church_financials
+      `).get().m;
+      assert.equal(groups, 21);
+      assert.equal(dupChurches, 43);
+      assert.equal(scraped, summed);
+      assert.ok(nat > 1000);
+      assert.ok(scraped > 1000);
+      assert.notEqual(Math.round(nat), Math.round(scraped));
+    } finally {
+      conn.close();
+    }
+  });
 });

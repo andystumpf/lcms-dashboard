@@ -935,18 +935,8 @@ function fillSnapshotLegend() {
   const el = document.getElementById('numbersLegend');
   if (!el) return;
   const snap = LCMS.snapshot;
-  if (!snap) { el.hidden = true; return; }
-  const hist = (snap.historyStart != null && snap.historyEnd != null)
-    ? `${snap.historyStart}–${snap.historyEnd}`
-    : 'the history window';
-  const head = snap.headlineYear != null ? String(snap.headlineYear) : 'the latest reported year';
-  const official = snap.officialCongregations != null
-    ? snap.officialCongregations.toLocaleString()
-    : '—';
-  el.textContent = `Headlines are each church’s latest reported year (mostly ${head}). `
-    + `Trend charts use ${hist} history for ${Number(snap.withHistory).toLocaleString()} congregations. `
-    + `Locator lists ${Number(snap.churches).toLocaleString()} records; official synod count is ${official}. `
-    + `Those figures are not interchangeable.`;
+  if (!snap?.legend) { el.hidden = true; return; }
+  el.textContent = snap.legend;
   el.hidden = false;
 }
 

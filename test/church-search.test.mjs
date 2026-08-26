@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { searchChurches } from '../lib/church-search.mjs';
+import { duplicatePlaceKeys, placeKey, searchChurches } from '../lib/church-search.mjs';
 
 const districts = [
   { name: 'Texas' },
@@ -37,5 +37,34 @@ describe('searchChurches', () => {
 
   it('returns empty under two characters', () => {
     assert.deepEqual(searchChurches(churches, 't', { districts }), { hits: [], total: 0 });
+  });
+});
+
+describe('duplicatePlaceKeys', () => {
+  it('flags churches that share name, city, and state', () => {
+    const list = [
+      { cid: 1, name: 'Trinity', city: 'Fort Wayne', st: 'IN', zip: '46816' },
+      { cid: 2, name: 'Trinity', city: 'Fort Wayne', st: 'IN', zip: '46808' },
+      { cid: 3, name: 'Zion', city: 'Chicago', st: 'IL' }
+    ];
+    const dups = duplicatePlaceKeys(list);
+    assert.equal(dups.size, 1);
+    assert.equal(dups.has(placeKey(list[0])), true);
+    assert.equal(dups.has(placeKey(list[2])), false);
+  });
+
+  it('treats case differences as the same place', () => {
+    const dups = duplicatePlaceKeys([
+      { cid: 1, name: 'Saint John Lutheran Church', city: 'TIGERTON', st: 'WI' },
+      { cid: 2, name: 'Saint John Lutheran Church', city: 'Tigerton', st: 'WI' }
+    ]);
+    assert.equal(dups.size, 1);
+  });
+
+  it('ignores records with no name, city, or state', () => {
+    assert.equal(duplicatePlaceKeys([
+      { cid: 1 },
+      { cid: 2 }
+    ]).size, 0);
   });
 });

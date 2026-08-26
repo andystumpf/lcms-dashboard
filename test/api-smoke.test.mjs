@@ -113,6 +113,8 @@ describe('HTTP smoke', () => {
     assert.ok(body.members > 0);
     assert.ok(body.members < body.churches);
     assert.ok(Number.isInteger(body.headlineHistoryMismatch));
+    assert.equal(body.duplicateNameGroups, 23);
+    assert.ok(body.givingHeadlineMillions > body.givingHistoryMillions);
   });
 
   it('serves the dashboard pages', async () => {
