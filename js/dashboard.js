@@ -91,14 +91,22 @@ function top50CellFmt(field, v) {
 let currentTop50Metric = 'att';
 const top50TableSort = { col: 'att', dir: 'desc' };
 
+function isMemberCongregation(c) {
+  return (c.status || '').trim() === 'Member Congregation';
+}
+
 function scopedChurchList() {
   if (STATE.district === 'all') return LCMS.churches;
   return LCMS.churches.filter(c => c.district === STATE.district);
 }
 
+function rankingPool() {
+  return scopedChurchList().filter(isMemberCongregation);
+}
+
 function getTop50ByField(field, dir = 'desc') {
   const val = (c) => c[field];
-  return [...scopedChurchList()]
+  return [...rankingPool()]
     .filter(c => val(c) != null && val(c) > 0)
     .sort((a, b) => {
       const diff = dir === 'desc' ? val(b) - val(a) : val(a) - val(b);
@@ -122,7 +130,7 @@ function updateTop50Chart(metricKey, data) {
   charts.top50.data.datasets[0].borderColor     = data.map(c => dColor(c.district));
   charts.top50.options = top50Opts(metricKey);
   charts.top50.update();
-  const scope = STATE.district === 'all' ? 'LCMS Congregations' : `${STATE.district} Congregations`;
+  const scope = STATE.district === 'all' ? 'LCMS Member Congregations' : `${STATE.district} Member Congregations`;
   document.getElementById('top50Title').textContent = `Top 50 ${scope} by ${m.label}`;
   buildDistrictLegend(data);
 }
@@ -256,9 +264,10 @@ function renderTop50Table(data, sortCol, sortDir) {
     const col = TOP50_TABLE_COLS.find(c => c.id === sortCol);
     const label = col ? col.label.toLowerCase() : TOP50_METRICS[currentTop50Metric].label.toLowerCase();
     const dir = sortDir === 'desc' ? 'highest first' : 'lowest first';
+    const n = rankingPool().length.toLocaleString();
     sub.textContent = col
-      ? `Top 50 of ${LCMS.churches.length.toLocaleString()} congregations by ${label} (${dir})`
-      : `Top 50 of ${LCMS.churches.length.toLocaleString()} congregations by ${label}`;
+      ? `Top 50 of ${n} member congregations by ${label} (${dir})`
+      : `Top 50 of ${n} member congregations by ${label}`;
   }
 }
 

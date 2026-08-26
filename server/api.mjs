@@ -6,7 +6,7 @@
 //
 // Endpoints:
 //   GET  /api/lcms              Full dashboard payload (same shape as scraped.json)
-//   GET  /api/health            { ok, source, churches, districts }
+//   GET  /api/health            snapshot counts, year span, headline/history mismatch
 //   POST /api/sql/execute       Run SQL
 //   POST /api/sql/transaction   BEGIN | COMMIT | ROLLBACK
 //   GET  /api/sql/tables        List tables
@@ -21,6 +21,7 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { describeHealth } from '../lib/dashboard-math.mjs';
 import loadLcmsFromDb, { DEFAULT_DB } from '../lib/load-from-sql.mjs';
 import {
   executeSql,
@@ -181,14 +182,10 @@ const server = createServer(async (req, res) => {
 
   try {
     if (path === '/api/health' && req.method === 'GET') {
-      const data = getLcms();
       sendJson(res, 200, {
-        ok: true,
+        ...describeHealth(getLcms()),
         source: 'sqlite',
-        db: DB_PATH,
-        fetchedAt: data.fetchedAt,
-        churches: data.churches.length,
-        districts: data.districts.length
+        db: DB_PATH
       });
       return;
     }

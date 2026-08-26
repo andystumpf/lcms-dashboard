@@ -1,4 +1,5 @@
 // Shared type-ahead search over LCMS.churches. Used by church lookup and compare views.
+// Ranking rules live in lib/church-search.mjs; keep this copy aligned.
 
 (function () {
   const MAX_RESULTS = 200;
@@ -24,12 +25,13 @@
     if (tok.length === 2 && fields.st === tok) return 2;
     const fullState = STATE_NAMES[tok];
     if (fullState && fields.st === fullState.toLowerCase()) return 2;
+    if (fields.district === tok) return 2;
     if (fields.name.startsWith(tok)) return 3;
     if (fields.nameWords.some(w => w.startsWith(tok))) return 4;
-    if (fields.city.startsWith(tok)) return 5;
-    if (fields.cityWords.some(w => w.startsWith(tok))) return 6;
+    if (fields.city.startsWith(tok) || fields.district.startsWith(tok)) return 5;
+    if (fields.cityWords.some(w => w.startsWith(tok)) || fields.districtWords.some(w => w.startsWith(tok))) return 6;
     if (fields.name.includes(tok)) return 7;
-    if (fields.city.includes(tok)) return 8;
+    if (fields.city.includes(tok) || fields.district.includes(tok)) return 8;
     return null;
   }
 
@@ -38,9 +40,10 @@
     const dash = q.indexOf(' — ');
     if (dash >= 0) q = q.slice(0, dash).trim();
     let tokens = q.toLowerCase().split(/[\s,]+/).filter(Boolean);
+    const districtNames = new Set((LCMS.districts || []).map(d => (d.name || '').toLowerCase()));
     for (let i = 0; i < tokens.length - 1; i++) {
       const two = `${tokens[i]} ${tokens[i + 1]}`;
-      if (STATE_NAMES[two]) { tokens.splice(i, 2, two); }
+      if (STATE_NAMES[two] || districtNames.has(two)) { tokens.splice(i, 2, two); }
     }
 
     const ranked = [];
@@ -50,8 +53,10 @@
         city:      (c.city || '').toLowerCase(),
         st:        (c.st   || '').toLowerCase(),
         zip:       (c.zip  || '').toLowerCase(),
+        district:  (c.district || '').toLowerCase(),
         nameWords: (c.name || '').toLowerCase().split(/\s+/),
-        cityWords: (c.city || '').toLowerCase().split(/\s+/)
+        cityWords: (c.city || '').toLowerCase().split(/\s+/),
+        districtWords: (c.district || '').toLowerCase().split(/[\s/]+/).filter(Boolean)
       };
       let total = 0;
       let allMatched = true;

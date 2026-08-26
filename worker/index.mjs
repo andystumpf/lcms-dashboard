@@ -1,3 +1,4 @@
+import { describeHealth } from '../lib/dashboard-math.mjs';
 import loadLcmsFromD1 from '../lib/load-from-d1.mjs';
 import {
   executeSql,
@@ -115,11 +116,8 @@ export default {
       if (path === '/api/health' && request.method === 'GET') {
         const data = await getLcms(env.DB);
         return sendJson({
-          ok: true,
-          source: 'd1',
-          fetchedAt: data.fetchedAt,
-          churches: data.churches.length,
-          districts: data.districts.length
+          ...describeHealth(data),
+          source: 'd1'
         });
       }
 

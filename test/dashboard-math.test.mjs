@@ -7,8 +7,10 @@ import {
   deriveStateTop20,
   describeSnapshot,
   deriveDistrictYearly,
+  describeHealth,
   headlineKpis,
   isFlatSeries,
+  isMemberCongregation,
   periodPctChange,
   scaleSeries,
   scopedKpiSeries,
@@ -73,6 +75,18 @@ describe('topN', () => {
   it('drops null/zero and breaks ties by cid', () => {
     const top = topN(churches, 'att', 2);
     assert.deepEqual(top.map(c => c.cid), [1, 2]);
+  });
+
+  it('can restrict rankings to member congregations', () => {
+    const mixed = [
+      { cid: 1, att: 200, status: 'New Church Start' },
+      { cid: 2, att: 150, status: 'Member Congregation' },
+      { cid: 3, att: 100, status: '' }
+    ];
+    assert.deepEqual(topN(mixed, 'att', 50).map(c => c.cid), [1, 2, 3]);
+    assert.deepEqual(topN(mixed, 'att', 50, 'desc', { membersOnly: true }).map(c => c.cid), [2]);
+    assert.equal(isMemberCongregation(mixed[1]), true);
+    assert.equal(isMemberCongregation(mixed[0]), false);
   });
 });
 
@@ -234,6 +248,44 @@ describe('describeSnapshot', () => {
     assert.equal(snap.withHistory, 2);
     assert.match(snapshotLegendText(snap), /2025/);
     assert.match(snapshotLegendText(snap), /2015–2024/);
+  });
+});
+
+describe('describeHealth', () => {
+  it('counts snapshot fields and headline vs last-history mismatches', () => {
+    const health = describeHealth({
+      fetchedAt: '2026-05-28T16:02:07.327Z',
+      summary: { congregations: 5734 },
+      yearly: { years: [2023, 2024] },
+      districts: [{ name: 'Texas' }, { name: 'Missouri' }],
+      districtYearly: { Texas: {}, Missouri: {} },
+      churches: [
+        {
+          status: 'Member Congregation',
+          lastStatYear: 2025,
+          baptized: 100,
+          history: { years: [2023, 2024], baptized: [90, 80] }
+        },
+        {
+          status: 'New Church Start',
+          lastStatYear: 2024,
+          baptized: 50,
+          history: { years: [2023, 2024], baptized: [50, 50] }
+        }
+      ]
+    });
+    assert.equal(health.ok, true);
+    assert.equal(health.churches, 2);
+    assert.equal(health.districts, 2);
+    assert.equal(health.officialCongregations, 5734);
+    assert.equal(health.withHistory, 2);
+    assert.equal(health.historyStart, 2023);
+    assert.equal(health.historyEnd, 2024);
+    assert.equal(health.historyYears, 2);
+    assert.equal(health.headlineYear, 2025);
+    assert.equal(health.headlineHistoryMismatch, 1);
+    assert.equal(health.districtYearly, 2);
+    assert.equal(health.members, 1);
   });
 });
 

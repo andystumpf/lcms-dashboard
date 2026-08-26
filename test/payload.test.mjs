@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
 
 import loadLcmsFromDb from '../lib/load-from-sql.mjs';
-import { headlineKpis, isFlatSeries, scopedKpiSeries, scaleSeries } from '../lib/dashboard-math.mjs';
+import { describeHealth, headlineKpis, isFlatSeries, isMemberCongregation, scopedKpiSeries, scaleSeries, topN } from '../lib/dashboard-math.mjs';
 import { DB_PATH, requireDb } from './helpers.mjs';
 
 let LCMS;
@@ -93,5 +93,23 @@ describe('LCMS payload contract', () => {
     assert.equal(s.bap.at(-1), LCMS.districtYearly[name].baptizedMembers[yi]);
     assert.notEqual(Math.round(scaledLast), s.bap.at(-1));
     assert.equal(s.giv.every(v => v == null), true);
+  });
+
+  it('reports health counts that match the assembled snapshot', () => {
+    const health = describeHealth(LCMS);
+    assert.equal(health.ok, true);
+    assert.equal(health.churches, LCMS.churches.length);
+    assert.equal(health.districts, LCMS.districts.length);
+    assert.equal(health.officialCongregations, LCMS.summary.congregations);
+    assert.equal(health.withHistory, LCMS.snapshot.withHistory);
+    assert.equal(health.historyEnd, LCMS.snapshot.historyEnd);
+    assert.equal(health.headlineYear, LCMS.snapshot.headlineYear);
+    assert.equal(health.districtYearly, Object.keys(LCMS.districtYearly).length);
+    assert.equal(health.members, LCMS.churches.filter(isMemberCongregation).length);
+    assert.ok(health.members < health.churches);
+    assert.ok(health.headlineHistoryMismatch > 0);
+    const membersTop = topN(LCMS.churches, 'att', 50, 'desc', { membersOnly: true });
+    assert.equal(membersTop.length, 50);
+    assert.ok(membersTop.every(isMemberCongregation));
   });
 });
