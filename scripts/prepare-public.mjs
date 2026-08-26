@@ -30,6 +30,11 @@ for (const file of ['index.html', 'compare.html', 'sql.html']) {
 cpSync(join(ROOT, 'css'), join(PUBLIC, 'css'), { recursive: true });
 cpSync(join(ROOT, 'js'), join(PUBLIC, 'js'), { recursive: true });
 
+mkdirSync(join(PUBLIC, 'lib'), { recursive: true });
+for (const file of ['dashboard-math.mjs', 'church-search.mjs', 'story-math.mjs']) {
+  cpSync(join(ROOT, 'lib', file), join(PUBLIC, 'lib', file));
+}
+
 for (const file of readdirSync(PUBLIC).filter(f => f.endsWith('.html'))) {
   injectAnalytics(join(PUBLIC, file));
 }

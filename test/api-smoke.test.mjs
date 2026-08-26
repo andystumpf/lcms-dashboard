@@ -130,6 +130,21 @@ describe('HTTP smoke', () => {
       assert.match(html, /<html/i);
       if (path === '/compare.html') assert.match(html, /compareYearNote/);
       if (path === '/index.html' || path === '/') assert.match(html, /districtLeagueSubtitle/);
+      if (path !== '/sql.html') assert.match(html, /lcms-math-boot\.mjs/);
+    }
+  });
+
+  it('serves the shared math module as JavaScript', async () => {
+    for (const path of [
+      '/js/lcms-math-boot.mjs',
+      '/lib/dashboard-math.mjs',
+      '/lib/story-math.mjs',
+      '/lib/church-search.mjs'
+    ]) {
+      const { status, headers, buf } = await rawGet(path);
+      assert.equal(status, 200, path);
+      assert.match(String(headers['content-type'] || ''), /javascript/i, path);
+      assert.ok(buf.length > 40, path);
     }
   });
 

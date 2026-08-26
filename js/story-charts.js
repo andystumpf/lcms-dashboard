@@ -10,20 +10,7 @@
   };
 
   const charts = {};
-  const ya = (k) => {
-    const st = state();
-    const nat = LCMS.yearly || {};
-    if (!st.district || st.district === 'all') return nat[k] || [];
-    const years = nat.years || [];
-    const nationalOnly = new Set([
-      'totalGivingMillions', 'atHomeMillions', 'infantBaptisms', 'adultBaptisms',
-      'confirmations', 'newMembers', 'removals'
-    ]);
-    if (nationalOnly.has(k)) return years.map(() => null);
-    const d = LCMS.districtYearly && LCMS.districtYearly[st.district];
-    if (!d) return (k === 'years') ? years : years.map(() => null);
-    return d[k] != null ? d[k] : (nat[k] || []);
-  };
+  const ya = (k) => (window.LCMSMath.yearlyForScope(LCMS, state().district)[k] || []);
 
   function state() {
     return window.DSTATE || { district: 'all', startYear: null, endYear: null };
@@ -31,13 +18,9 @@
 
   function bounds() {
     const years = ya('years');
-    if (!years.length) return { si: 0, ei: -1 };
-    let si = 0, ei = years.length - 1;
     const st = state();
-    if (st.startYear != null) { const i = years.indexOf(+st.startYear); if (i >= 0) si = i; }
-    if (st.endYear != null) { const i = years.indexOf(+st.endYear); if (i >= 0) ei = i; }
-    if (si > ei) { const t = si; si = ei; ei = t; }
-    return { si, ei };
+    const { startIdx, endIdx } = window.LCMSMath.yearBounds(years, st.startYear, st.endYear);
+    return { si: startIdx, ei: endIdx };
   }
 
   function yrs() {

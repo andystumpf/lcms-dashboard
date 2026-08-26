@@ -13,33 +13,15 @@ function recordUiError(label, err) {
 function safe(fn, label) {
   try { fn(); } catch (e) { recordUiError(label, e); }
 }
+function math() {
+  const m = window.LCMSMath;
+  if (!m) throw new Error('shared dashboard math did not load');
+  return m;
+}
 const yearlyArr = (k) => (activeYearly()[k] || []);
 
-const NATIONAL_ONLY_YEARLY = [
-  'totalGivingMillions', 'atHomeMillions', 'infantBaptisms', 'adultBaptisms',
-  'confirmations', 'newMembers', 'removals'
-];
-
 function activeYearly() {
-  const nat = LCMS.yearly || {};
-  const years = nat.years || [];
-  if (STATE.district === 'all') return nat;
-  const nulls = years.map(() => null);
-  const blocked = {};
-  for (const k of NATIONAL_ONLY_YEARLY) blocked[k] = nulls;
-  const d = LCMS.districtYearly && LCMS.districtYearly[STATE.district];
-  if (!d) {
-    return {
-      ...nat,
-      baptizedMembers: nulls,
-      communingMembers: nulls,
-      avgWeeklyAttendance: nulls,
-      congregations: nulls,
-      sampleSize: nulls,
-      ...blocked
-    };
-  }
-  return { ...nat, ...d, ...blocked };
+  return math().yearlyForScope(LCMS, STATE.district);
 }
 
 function dColor(district) { return LCMS.districtColors[district] || '#888'; }
@@ -48,11 +30,6 @@ function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
-}
-
-function isFlatSeries(arr) {
-  if (!arr?.length) return true;
-  return arr.every(v => v === arr[0]);
 }
 
 function setText(id, text) {
@@ -100,29 +77,16 @@ function top50CellFmt(field, v) {
 let currentTop50Metric = 'att';
 const top50TableSort = { col: 'att', dir: 'desc' };
 
-function isMemberCongregation(c) {
-  return (c.status || '').trim() === 'Member Congregation';
-}
-
 function scopedChurchList() {
-  if (STATE.district === 'all') return LCMS.churches;
-  return LCMS.churches.filter(c => c.district === STATE.district);
+  return math().scopedChurches(LCMS, STATE.district);
 }
 
 function rankingPool() {
-  return scopedChurchList().filter(isMemberCongregation);
+  return scopedChurchList().filter(c => math().isMemberCongregation(c));
 }
 
 function getTop50ByField(field, dir = 'desc') {
-  const val = (c) => c[field];
-  return [...rankingPool()]
-    .filter(c => val(c) != null && val(c) > 0)
-    .sort((a, b) => {
-      const diff = dir === 'desc' ? val(b) - val(a) : val(a) - val(b);
-      if (diff !== 0) return diff;
-      return (a.cid ?? 0) - (b.cid ?? 0);
-    })
-    .slice(0, 50);
+  return math().topN(scopedChurchList(), field, 50, dir, { membersOnly: true });
 }
 
 function getTop50Data(metricKey) {
@@ -532,7 +496,7 @@ function buildDistrictTable() {
   if (!tbody) return;
   const sub = document.getElementById('districtLeagueSubtitle');
   if (sub) {
-    sub.textContent = 'PDF district headlines · not the history-window sums used in trend charts · ranked by congregations';
+    sub.textContent = math().LEAGUE_TABLE_SUBTITLE;
   }
   const num = (v) => (v == null) ? '—' : v.toLocaleString();
   const money = (v) => (v == null) ? '—' : `$${v.toFixed(1)}M`;
@@ -556,85 +520,43 @@ function buildDistrictTable() {
 // ─── Unified filter state ────────────────────────────────────────────────────────
 const STATE = { district: 'all', startYear: null, endYear: null };
 
-function yearBounds() {
-  const years = LCMS.yearly.years || [];
-  if (!years.length) return { startIdx: 0, endIdx: -1 };
-  let startIdx = 0;
-  let endIdx = years.length - 1;
-  if (STATE.startYear != null) {
-    const i = years.indexOf(Number(STATE.startYear));
-    if (i >= 0) startIdx = i;
-  }
-  if (STATE.endYear != null) {
-    const i = years.indexOf(Number(STATE.endYear));
-    if (i >= 0) endIdx = i;
-  }
-  if (startIdx > endIdx) { const t = startIdx; startIdx = endIdx; endIdx = t; }
-  return { startIdx, endIdx };
+function yearWindow() {
+  return math().yearBounds(LCMS.yearly.years || [], STATE.startYear, STATE.endYear);
 }
 
-function rangeStartIdx() { return yearBounds().startIdx; }
+function rangeStartIdx() { return yearWindow().startIdx; }
 
 function scopedYears() {
-  const { startIdx, endIdx } = yearBounds();
-  return (LCMS.yearly.years || []).slice(startIdx, endIdx + 1);
+  return math().scopedYears(LCMS.yearly.years || [], STATE.startYear, STATE.endYear);
 }
 
 function scopedSeries(f) {
-  const { startIdx, endIdx } = yearBounds();
+  const { startIdx, endIdx } = yearWindow();
   return yearlyArr(f).slice(startIdx, endIdx + 1);
 }
 
-function scopedKpiSeries() {
-  const y = activeYearly();
-  const { startIdx, endIdx } = yearBounds();
-  const cut = (arr) => (arr || []).slice(startIdx, endIdx + 1);
-  const round = (arr) => cut(arr).map(v => v == null ? null : Math.round(v));
-  return {
-    cong: round(y.congregations),
-    bap:  round(y.baptizedMembers),
-    att:  round(y.avgWeeklyAttendance),
-    giv:  cut(y.totalGivingMillions)
-  };
+function kpiSeries() {
+  return math().scopedKpiSeries(LCMS, {
+    district: STATE.district,
+    startYear: STATE.startYear,
+    endYear: STATE.endYear
+  });
 }
 
 const fmtMembers = v => v >= 1e6 ? (v/1e6).toFixed(3)+'M'
                        : v >= 1e4 ? (v/1e3).toFixed(0)+'K'
                        :            v.toLocaleString();
 const fmtMoney   = v => v >= 1000 ? '$'+(v/1000).toFixed(2)+'B' : '$'+v.toFixed(0)+'M';
-const pctChange  = (a, b) => ((b - a) / a) * 100;
-
-// % change for period chart; null when start is zero or sample isn't comparable (giving).
-function periodPctChange(arr, { minComparableRatio = 0 } = {}) {
-  if (!arr?.length || arr.length < 2) return null;
-  const start = arr[0], end = arr[arr.length - 1];
-  if (start == null || end == null) return null;
-  if (start === 0) return end === 0 ? 0 : null;
-  if (minComparableRatio > 0 && end > 0 && start / end < minComparableRatio) return null;
-  return +pctChange(start, end).toFixed(1);
-}
 
 // ─── KPI cards ──────────────────────────────────────────────────────────────────
 function updateKpis() {
-  const s = scopedKpiSeries();
+  const s = kpiSeries();
   const yrs = scopedYears();
   const startYr = yrs[0];
   const last = s.cong.length - 1;
   const isDistrict = STATE.district !== 'all';
 
-  const scoped = STATE.district === 'all'
-    ? LCMS.churches
-    : LCMS.churches.filter(c => c.district === STATE.district);
-  const lSum = (f) => scoped.reduce((a, c) => a + (c[f] || 0), 0);
-  const localKpis = {
-    churches:   scoped.filter(c => c.att != null || c.baptized != null).length,
-    baptized:   lSum('baptized') || null,
-    attendance: lSum('att') || null,
-    giving:     lSum('giving') ? +(lSum('giving') / 1e6).toFixed(1) : null,
-  };
-  const officialKpis = STATE.district === 'all'
-    ? { churches: LCMS.summary.congregations, baptized: LCMS.summary.baptizedMembers, attendance: LCMS.summary.avgWeeklyAttendance, giving: LCMS.summary.totalGivingMillions }
-    : LCMS.districts.find(x => x.name === STATE.district) || {};
+  const { local: localKpis, official: officialKpis } = math().headlineKpis(LCMS, { district: STATE.district });
 
   const pair = (id, lv, tv, fmt) => {
     const el = document.getElementById(id);
@@ -672,7 +594,7 @@ function updateKpis() {
 
   const setChange = (id, arr, opts = {}) => {
     const el = document.getElementById(id);
-    if (opts.flatMessage && isFlatSeries(arr)) {
+    if (opts.flatMessage && math().isFlatSeries(arr)) {
       el.textContent = opts.flatMessage;
       el.className   = 'kpi-change';
       return;
@@ -682,7 +604,7 @@ function updateKpis() {
       el.className   = 'kpi-change';
       return;
     }
-    const p = pctChange(arr[0], arr[last]);
+    const p = math().pctChange(arr[0], arr[last]);
     el.textContent = `${p >= 0 ? '+' : '-'}${Math.abs(p).toFixed(1)}% since ${startYr}`;
     el.className   = 'kpi-change ' + (p >= 0 ? 'up' : 'down');
   };
@@ -732,7 +654,7 @@ function buildIndexedTrendChart() {
 }
 
 function refreshIndexedTrend() {
-  const s = scopedKpiSeries();
+  const s = kpiSeries();
   const idx = arr => (arr.length && arr[0]) ? arr.map(v => +((v / arr[0]) * 100).toFixed(1)) : arr.map(() => null);
   charts.indexedTrend.data.labels = scopedYears();
   charts.indexedTrend.data.datasets[0].data = idx(s.bap);
@@ -771,11 +693,11 @@ function buildKpiChangeChart() {
 }
 
 function refreshKpiChange() {
-  const s = scopedKpiSeries();
+  const s = kpiSeries();
   const raw = [
-    periodPctChange(s.bap),
-    periodPctChange(s.att),
-    periodPctChange(s.giv, { minComparableRatio: 0.25 }),
+    math().periodPctChange(s.bap),
+    math().periodPctChange(s.att),
+    math().periodPctChange(s.giv, { minComparableRatio: 0.25 }),
   ];
   charts.kpiChange._rawPct = raw;
 
@@ -817,7 +739,7 @@ function buildMembersPerChurchChart() {
 }
 
 function refreshMembersPerChurch() {
-  const s = scopedKpiSeries();
+  const s = kpiSeries();
   charts.membersPerChurch.data.labels = scopedYears();
   charts.membersPerChurch.data.datasets[0].data = s.bap.map((b,i) => s.cong[i] ? Math.round(b / s.cong[i]) : null);
   charts.membersPerChurch.update();
@@ -890,7 +812,7 @@ function refreshDistrictShare() {
 
 // ─── Trend chart period slicing (existing behavior, preserved) ───────────────────
 function refreshTrendCharts() {
-  const { startIdx, endIdx } = yearBounds();
+  const { startIdx, endIdx } = yearWindow();
   const yrs = yearlyArr('years').slice(startIdx, endIdx + 1);
   const slice = (arr) => (arr || []).slice(startIdx, endIdx + 1);
   const upd = (chart, sets) => { chart.data.labels = yrs; sets.forEach((d,i)=>{ chart.data.datasets[i].data = slice(d); }); chart.update(); };
@@ -981,7 +903,7 @@ function syncYearPresetOption() {
   const years = LCMS.yearly.years || [];
   const n = years.length;
   if (!n) return;
-  const { startIdx, endIdx } = yearBounds();
+  const { startIdx, endIdx } = yearWindow();
   const preset = document.getElementById('yearPreset');
   if (!preset) return;
   if (startIdx === 0 && endIdx === n - 1) preset.value = 'all';

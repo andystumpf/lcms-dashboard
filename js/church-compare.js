@@ -464,35 +464,12 @@
     });
   }
 
-  function churchHistoryEnd(c) {
-    const years = c?.history?.years;
-    return years?.length ? years[years.length - 1] : null;
-  }
-
-  function churchHeadlineYear(c) {
-    return c?.lastStatYear || c?.reportYear || churchHistoryEnd(c) || null;
-  }
-
-  function hasHeadlineHistoryYearGap(c) {
-    const head = churchHeadlineYear(c);
-    const end = churchHistoryEnd(c);
-    return head != null && end != null && Number(head) !== Number(end);
-  }
-
-  function compareYearMismatchNote(churches) {
-    const list = churches || [];
-    const mismatched = list.filter(hasHeadlineHistoryYearGap);
-    if (!mismatched.length) return '';
-    if (mismatched.length === list.length) {
-      return 'Table figures are each church’s latest reported year; trend charts end at the last history year.';
-    }
-    return `${mismatched.length} of ${list.length} churches have headline stats from a later year than the trend chart.`;
-  }
-
   function updateYearNote() {
     const el = $('compareYearNote');
     if (!el) return;
-    const note = selected.length >= MIN_CHURCHES ? compareYearMismatchNote(selected) : '';
+    const note = selected.length >= MIN_CHURCHES && window.LCMSMath
+      ? window.LCMSMath.compareYearMismatchNote(selected)
+      : '';
     el.hidden = !note;
     el.textContent = note;
     const sub = $('compareTrendSubtitle');

@@ -341,3 +341,43 @@ describe('normDistrictName', () => {
     assert.equal(normDistrictName('  Missouri   District  '), 'Missouri');
   });
 });
+
+describe('browser dashboard math', () => {
+  it('calls lib/dashboard-math.mjs instead of a second copy', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { dirname, join } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const dashboard = await readFile(join(root, 'js/dashboard.js'), 'utf8');
+    const compare = await readFile(join(root, 'js/church-compare.js'), 'utf8');
+    const index = await readFile(join(root, 'index.html'), 'utf8');
+    const compareHtml = await readFile(join(root, 'compare.html'), 'utf8');
+    const boot = await readFile(join(root, 'js/lcms-math-boot.mjs'), 'utf8');
+    const prepare = await readFile(join(root, 'scripts/prepare-public.mjs'), 'utf8');
+
+    assert.match(boot, /from '\.\.\/lib\/dashboard-math\.mjs'/);
+    assert.match(index, /lcms-math-boot\.mjs/);
+    assert.match(compareHtml, /lcms-math-boot\.mjs/);
+    assert.match(prepare, /dashboard-math\.mjs/);
+
+    for (const needle of [
+      'math().yearBounds',
+      'math().scopedKpiSeries',
+      'math().periodPctChange',
+      'math().topN',
+      'math().yearlyForScope',
+      'math().headlineKpis'
+    ]) {
+      assert.match(dashboard, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    }
+    assert.doesNotMatch(dashboard, /function yearBounds\(/);
+    assert.doesNotMatch(dashboard, /function periodPctChange\(/);
+    assert.doesNotMatch(dashboard, /function scopedKpiSeries\(/);
+    assert.doesNotMatch(dashboard, /function isMemberCongregation\(/);
+    assert.doesNotMatch(dashboard, /NATIONAL_ONLY_YEARLY/);
+
+    assert.match(compare, /LCMSMath\.compareYearMismatchNote/);
+    assert.doesNotMatch(compare, /function compareYearMismatchNote/);
+    assert.doesNotMatch(compare, /function hasHeadlineHistoryYearGap/);
+  });
+});

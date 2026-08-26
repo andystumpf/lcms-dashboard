@@ -52,7 +52,9 @@ describe('browser story copy', () => {
     for (const needle of [
       "filter(v => v != null && v > 0)",
       "'< −30%'",
-      'window.__lcmsErrors'
+      'window.__lcmsErrors',
+      'LCMSMath.yearBounds',
+      'LCMSMath.yearlyForScope'
     ]) {
       assert.match(browser, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
