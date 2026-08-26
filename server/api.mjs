@@ -21,7 +21,10 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { gzipSync } from 'node:zlib';
+
 import { describeHealth } from '../lib/dashboard-math.mjs';
+import { acceptGzip, encodeBuffer, jsonResponseHeaders } from '../lib/http-encode.mjs';
 import loadLcmsFromDb, { DEFAULT_DB } from '../lib/load-from-sql.mjs';
 import {
   executeSql,
@@ -49,30 +52,49 @@ const MIME = {
 
 let cache = null;
 let cacheAt = 0;
+let jsonBuf = null;
+let gzipBuf = null;
 const CACHE_MS = Number(process.env.LCMS_API_CACHE_MS || 5000);
-
-function invalidateCache() {
-  cache = null;
-  cacheAt = 0;
-}
 
 function getLcms() {
   const now = Date.now();
   if (!cache || now - cacheAt > CACHE_MS) {
     cache = loadLcmsFromDb(DB_PATH);
+    jsonBuf = null;
+    gzipBuf = null;
     cacheAt = now;
   }
   return cache;
 }
 
-function sendJson(res, status, body) {
-  const txt = JSON.stringify(body);
+function getLcmsBuffers() {
+  getLcms();
+  if (!jsonBuf) {
+    jsonBuf = Buffer.from(JSON.stringify(cache));
+    gzipBuf = gzipSync(jsonBuf);
+  }
+  return { jsonBuf, gzipBuf };
+}
+
+function sendJson(req, res, status, body) {
+  const raw = Buffer.from(JSON.stringify(body));
+  const { body: buf, gzip } = encodeBuffer(raw, req.headers['accept-encoding']);
   res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*'
+    ...jsonResponseHeaders(gzip),
+    'Content-Length': buf.length
   });
-  res.end(txt);
+  res.end(buf);
+}
+
+function sendLcms(req, res) {
+  const { jsonBuf: raw, gzipBuf: gz } = getLcmsBuffers();
+  const gzip = acceptGzip(req.headers['accept-encoding']);
+  const buf = gzip ? gz : raw;
+  res.writeHead(200, {
+    ...jsonResponseHeaders(gzip),
+    'Content-Length': buf.length
+  });
+  res.end(buf);
 }
 
 function readBody(req) {
@@ -115,36 +137,36 @@ async function handleSqlRoutes(req, res, path) {
   if (path === '/api/sql/execute' && req.method === 'POST') {
     const body = await readBody(req);
     const result = executeSql(DB_PATH, body.query || '');
-    sendJson(res, result.success ? 200 : 400, result);
+    sendJson(req, res, result.success ? 200 : 400, result);
     return true;
   }
 
   if (path === '/api/sql/transaction' && req.method === 'POST') {
-    sendJson(res, 403, runTransaction());
+    sendJson(req, res, 403, runTransaction());
     return true;
   }
 
   if (path === '/api/sql/tables' && req.method === 'GET') {
-    sendJson(res, 200, listTables(DB_PATH));
+    sendJson(req, res, 200, listTables(DB_PATH));
     return true;
   }
 
   const colMatch = path.match(/^\/api\/sql\/tables\/([^/]+)\/columns$/);
   if (colMatch && req.method === 'GET') {
     const result = listColumns(DB_PATH, decodeURIComponent(colMatch[1]));
-    sendJson(res, result.success ? 200 : 400, result);
+    sendJson(req, res, result.success ? 200 : 400, result);
     return true;
   }
 
   if (path === '/api/sql/saved' && req.method === 'GET') {
-    sendJson(res, 200, getSavedQueries());
+    sendJson(req, res, 200, getSavedQueries());
     return true;
   }
 
   if (path === '/api/sql/saved' && req.method === 'POST') {
     const body = await readBody(req);
     const result = saveQuery(body);
-    sendJson(res, result.success ? 200 : 400, result);
+    sendJson(req, res, result.success ? 200 : 400, result);
     return true;
   }
 
@@ -154,12 +176,12 @@ async function handleSqlRoutes(req, res, path) {
     if (req.method === 'PUT') {
       const body = await readBody(req);
       const result = updateSavedQuery(id, body);
-      sendJson(res, result.success ? 200 : 400, result);
+      sendJson(req, res, result.success ? 200 : 400, result);
       return true;
     }
     if (req.method === 'DELETE') {
       const result = deleteSavedQuery(id);
-      sendJson(res, result.success ? 200 : 400, result);
+      sendJson(req, res, result.success ? 200 : 400, result);
       return true;
     }
   }
@@ -182,7 +204,7 @@ const server = createServer(async (req, res) => {
 
   try {
     if (path === '/api/health' && req.method === 'GET') {
-      sendJson(res, 200, {
+      sendJson(req, res, 200, {
         ...describeHealth(getLcms()),
         source: 'sqlite',
         db: DB_PATH
@@ -191,14 +213,14 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === '/api/lcms' && req.method === 'GET') {
-      sendJson(res, 200, getLcms());
+      sendLcms(req, res);
       return;
     }
 
     if (path.startsWith('/api/sql/')) {
       const handled = await handleSqlRoutes(req, res, path);
       if (handled) return;
-      sendJson(res, 405, { success: false, error: 'Method not allowed' });
+      sendJson(req, res, 405, { success: false, error: 'Method not allowed' });
       return;
     }
 
@@ -209,7 +231,7 @@ const server = createServer(async (req, res) => {
     await serveStatic(req, res);
   } catch (err) {
     console.error('[api]', err);
-    sendJson(res, 500, { success: false, error: err.message });
+    sendJson(req, res, 500, { success: false, error: err.message });
   }
 });
 

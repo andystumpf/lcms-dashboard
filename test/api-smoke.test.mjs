@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { request as httpRequest } from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
 import { DB_PATH, requireDb } from './helpers.mjs';
 
@@ -54,6 +56,23 @@ async function json(path, opts = {}) {
   let body = null;
   try { body = JSON.parse(text); } catch { body = text; }
   return { res, body };
+}
+
+function rawGet(path, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({
+      hostname: '127.0.0.1',
+      port: PORT,
+      path,
+      headers
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, buf: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
 }
 
 describe('HTTP smoke', () => {
@@ -124,5 +143,16 @@ describe('HTTP smoke', () => {
       assert.equal(bad.res.status, 400, query);
       assert.equal(bad.body.success, false);
     }
+  });
+
+  it('gzips the LCMS payload when the client asks for it', async () => {
+    const gz = await rawGet('/api/lcms', { 'Accept-Encoding': 'gzip' });
+    assert.equal(gz.status, 200);
+    assert.equal(gz.headers['content-encoding'], 'gzip');
+    assert.ok(gz.buf.length < 3_000_000, `gzipped payload was ${gz.buf.length} bytes`);
+    const data = JSON.parse(gunzipSync(gz.buf).toString('utf8'));
+    assert.ok(data.churches.length >= 5000);
+    assert.equal(data.districts.length, 35);
+    assert.ok(data.districtYearly);
   });
 });
